@@ -6,9 +6,8 @@ import {
   EnumType,
   existsSync,
   Select,
-  YAML,
 } from "./deps.ts";
-import { commandExists } from "./utils.ts";
+import { commandExists, getConfigurationWriter } from "./utils.ts";
 import { PackageManager } from "./package_manager.ts";
 import { ESLintConfig } from "./eslint.d.ts";
 import { PrettierConfig } from "./prettier.d.ts";
@@ -162,33 +161,14 @@ const cmd = new Command<Options>()
     await packageManager.addDev(...devPackages);
 
     const { yaml } = options;
+    const configurationWriter = getConfigurationWriter(yaml ? "yml" : "json");
 
     if (prettierConfig) {
-      if (yaml) {
-        Deno.writeTextFileSync(
-          ".prettierrc.yml",
-          YAML.stringify(prettierConfig),
-        );
-      } else {
-        Deno.writeTextFileSync(
-          ".prettierrc.json",
-          JSON.stringify(prettierConfig, null, 2),
-        );
-      }
+      configurationWriter(".prettierrc", prettierConfig);
     }
 
     if (esLintConfig) {
-      if (yaml) {
-        Deno.writeTextFileSync(
-          ".eslintrc.yml",
-          YAML.stringify(esLintConfig),
-        );
-      } else {
-        Deno.writeTextFileSync(
-          ".eslintrc.json",
-          JSON.stringify(esLintConfig, null, 2),
-        );
-      }
+      configurationWriter(".eslintrc", esLintConfig);
     }
   });
 
