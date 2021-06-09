@@ -11,6 +11,7 @@ import {
 import { commandExists } from "./utils.ts";
 import { PackageManager } from "./package_manager.ts";
 import { ESLintConfig } from "./eslint.d.ts";
+import { PrettierConfig } from "./prettier.d.ts";
 
 type Framework = "none" | "react";
 
@@ -100,11 +101,17 @@ const cmd = new Command<Options>()
       devPackages.push("typescript");
     }
 
+    let prettierConfig: PrettierConfig | undefined;
     if (prettier) {
       devPackages.push("prettier");
+
+      prettierConfig = {
+        semi: false,
+        singleQuote: true,
+      };
     }
 
-    let config: ESLintConfig | undefined;
+    let esLintConfig: ESLintConfig | undefined;
     if (eslint) {
       devPackages.push("eslint");
 
@@ -143,29 +150,43 @@ const cmd = new Command<Options>()
         shareableConfigs.push("prettier");
       }
 
-      config = { root: true, extends: shareableConfigs };
+      esLintConfig = { root: true, extends: shareableConfigs };
 
       if (typescript) {
-        config.parser = "@typescript-eslint/parser";
-        config.plugins = ["@typescript-eslint"];
+        esLintConfig.parser = "@typescript-eslint/parser";
+        esLintConfig.plugins = ["@typescript-eslint"];
       }
     }
 
     await packageManager.add(...packages);
     await packageManager.addDev(...devPackages);
 
-    if (config) {
-      const { yaml } = options;
+    const { yaml } = options;
 
+    if (prettierConfig) {
+      if (yaml) {
+        Deno.writeTextFileSync(
+          ".prettierrc.yml",
+          YAML.stringify(prettierConfig),
+        );
+      } else {
+        Deno.writeTextFileSync(
+          ".prettierrc.json",
+          JSON.stringify(prettierConfig, null, 2),
+        );
+      }
+    }
+
+    if (esLintConfig) {
       if (yaml) {
         Deno.writeTextFileSync(
           ".eslintrc.yml",
-          YAML.stringify(config),
+          YAML.stringify(esLintConfig),
         );
       } else {
         Deno.writeTextFileSync(
           ".eslintrc.json",
-          JSON.stringify(config, null, 2),
+          JSON.stringify(esLintConfig, null, 2),
         );
       }
     }
