@@ -8,9 +8,10 @@ import { getConfigurationWriter } from "./utils.ts";
 import { ESLintConfig } from "./eslint.d.ts";
 import { PrettierConfig } from "./prettier.d.ts";
 
-type Framework = "none" | "react";
+const frameworks = ["React", "Next"] as const;
+const frameworkType = new EnumType(frameworks);
 
-const frameworkType = new EnumType(["react"]);
+type Framework = typeof frameworks[number];
 
 type Options = {
   typescript?: true;
@@ -52,19 +53,18 @@ const cmd = new Command<Options>()
       }),
       framework = await Select.prompt({
         message: "Framework?",
-        options: [
-          { name: "None", value: "none" },
-          { name: "React", value: "react" },
-        ],
-        default: "react",
-      }) as Framework,
+        options: ["None", ...frameworks],
+      }) as "None" | Framework,
     } = options;
 
     const packages: string[] = [];
     const devPackages: string[] = [];
 
     switch (framework) {
-      case "react":
+      case "Next":
+        packages.push("next");
+        // falls through
+      case "React":
         packages.push("react", "react-dom");
         break;
     }
@@ -122,7 +122,8 @@ const cmd = new Command<Options>()
       }
 
       switch (framework) {
-        case "react":
+        case "Next":
+        case "React":
           devPackages.push("eslint-plugin-react", "eslint-plugin-react-hooks");
           frameworkConfigs.push(
             "plugin:react/recommended",
