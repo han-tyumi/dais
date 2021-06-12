@@ -1,13 +1,10 @@
+import { Command, Confirm, EnumType, Select } from "./deps.ts";
 import {
-  Checkbox,
-  CheckboxOption,
-  Command,
-  Confirm,
-  EnumType,
-  Select,
-} from "./deps.ts";
-import { getConfigurationWriter } from "./utils.ts";
+  ActionCheckboxOption,
+  actionCheckboxPrompt,
+} from "./action-checkbox.ts";
 import { PackageManager } from "./package_manager.ts";
+import { getConfigurationWriter } from "./utils.ts";
 import { ESLintConfig } from "./eslint.d.ts";
 import { PrettierConfig } from "./prettier.d.ts";
 
@@ -90,47 +87,65 @@ const cmd = new Command<Options>()
     if (eslint) {
       devPackages.push("eslint");
 
-      const shareableConfigs = ["eslint:recommended"];
-      const additionalConfigOptions: CheckboxOption[] = [];
+      esLintConfig = { root: true };
+      const languageConfigs = ["eslint:recommended"];
+      const frameworkConfigs: string[] = [];
+      const finalConfigs: string[] = [];
+      const additionalConfigOptions: ActionCheckboxOption[] = [
+        {
+          value: "Imports",
+          action: () => {
+            devPackages.push("eslint-plugin-import");
+            languageConfigs.push("plugin:import/recommended");
+            if (typescript) {
+              languageConfigs.push("plugin:import/typescript");
+            }
+          },
+        },
+      ];
 
       if (typescript) {
         devPackages.push(
           "@typescript-eslint/parser",
           "@typescript-eslint/eslint-plugin",
         );
-        shareableConfigs.push("plugin:@typescript-eslint/recommended");
+        languageConfigs.push("plugin:@typescript-eslint/recommended");
+        esLintConfig.parser = "@typescript-eslint/parser";
+        esLintConfig.plugins = ["@typescript-eslint"];
       }
 
       switch (framework) {
         case "react":
           devPackages.push("eslint-plugin-react", "eslint-plugin-react-hooks");
-          shareableConfigs.push("plugin:react/recommended");
-          additionalConfigOptions.push(
-            { name: "React Hooks", value: "plugin:react-hooks/recommended" },
-            { name: "React A11y", value: "plugin:jsx-a11y/recommended" },
+          frameworkConfigs.push(
+            "plugin:react/recommended",
+            "plugin:react-hooks/recommended",
           );
+          additionalConfigOptions.push({
+            value: "React A11y",
+            action: () => {
+              devPackages.push("eslint-plugin-jsx-a11y");
+              frameworkConfigs.push("plugin:jsx-a11y/recommended");
+            },
+          });
           break;
       }
 
-      if (additionalConfigOptions.length) {
-        const additionalConfigs = await Checkbox.prompt({
-          message: "Additional Rules",
-          options: additionalConfigOptions,
-        });
-        shareableConfigs.push(...additionalConfigs);
-      }
+      await actionCheckboxPrompt({
+        message: "Additional Rules",
+        options: additionalConfigOptions,
+      });
 
       if (prettier) {
         devPackages.push("eslint-config-prettier");
-        shareableConfigs.push("prettier");
+        finalConfigs.push("prettier");
       }
 
-      esLintConfig = { root: true, extends: shareableConfigs };
-
-      if (typescript) {
-        esLintConfig.parser = "@typescript-eslint/parser";
-        esLintConfig.plugins = ["@typescript-eslint"];
-      }
+      esLintConfig.extends = [
+        ...languageConfigs,
+        ...frameworkConfigs,
+        ...finalConfigs,
+      ];
     }
 
     await packageManager.add(...packages);
