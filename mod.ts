@@ -93,6 +93,13 @@ const cmd = new Command<Options>()
       const finalConfigs: string[] = [];
       const additionalConfigOptions: ActionCheckboxOption[] = [
         {
+          value: "Unicorn",
+          action: () => {
+            devPackages.push("eslint-plugin-unicorn");
+            languageConfigs.push("plugin:unicorn/recommended");
+          },
+        },
+        {
           value: "Imports",
           action: () => {
             devPackages.push("eslint-plugin-import");
