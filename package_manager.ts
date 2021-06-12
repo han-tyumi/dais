@@ -1,9 +1,40 @@
+import { existsSync } from "./deps.ts";
+import { commandExists } from "./utils.ts";
+
 export type PackageManagerCommand = "yarn" | "npm";
 
 export class PackageManager {
   private initCommand = "init";
   private addCommand: string;
   private devFlag: string;
+
+  static async init(prefer: PackageManagerCommand = "yarn") {
+    if (!await commandExists("node")) {
+      throw new Error("node does not exist");
+    }
+
+    if (existsSync("package.json")) {
+      return new PackageManager(
+        existsSync("yarn.lock") ? "yarn" : (existsSync("package-lock.json") ||
+            existsSync("npm-shrinkwrap.json"))
+          ? "npm"
+          : prefer === "yarn" && await commandExists("yarn")
+          ? "yarn"
+          : "npm",
+      );
+    }
+
+    const packageManager = new PackageManager(
+      prefer === "yarn" && await commandExists("yarn") ? "yarn" : "npm",
+    );
+
+    await packageManager.init();
+    if (!existsSync("package.json")) {
+      throw new Error("package.json not initialized");
+    }
+
+    return packageManager;
+  }
 
   constructor(readonly command: PackageManagerCommand = "yarn") {
     switch (command) {
@@ -16,7 +47,7 @@ export class PackageManager {
         this.devFlag = "--save-dev";
         break;
       default:
-        throw new Error(`invalid PackageManagerCommand name: ${command}`);
+        throw new Error(`invalid command: ${command}`);
     }
   }
 

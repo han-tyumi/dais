@@ -4,10 +4,9 @@ import {
   Command,
   Confirm,
   EnumType,
-  existsSync,
   Select,
 } from "./deps.ts";
-import { commandExists, getConfigurationWriter } from "./utils.ts";
+import { getConfigurationWriter } from "./utils.ts";
 import { PackageManager } from "./package_manager.ts";
 import { ESLintConfig } from "./eslint.d.ts";
 import { PrettierConfig } from "./prettier.d.ts";
@@ -38,31 +37,8 @@ const cmd = new Command<Options>()
   .option("--npm", "Use npm instead of yarn if found.")
   .option("--yaml", "Use YAML instead of JSON for configuration files.")
   .action(async (options) => {
-    if (!await commandExists("node")) {
-      throw new Error("node is required");
-    }
-
     const { npm } = options;
-
-    let packageManager: PackageManager;
-    if (!existsSync("package.json")) {
-      packageManager = new PackageManager(
-        !npm && await commandExists("yarn") ? "yarn" : "npm",
-      );
-      await packageManager.init();
-      if (!existsSync("package.json")) {
-        throw new Error("a package.json is required");
-      }
-    } else {
-      packageManager = new PackageManager(
-        existsSync("yarn.lock") ? "yarn" : (existsSync("package-lock.json") ||
-            existsSync("npm-shrinkwrap.json"))
-          ? "npm"
-          : !npm && await commandExists("yarn")
-          ? "yarn"
-          : "npm",
-      );
-    }
+    const packageManager = await PackageManager.init(npm ? "npm" : "yarn");
 
     const {
       typescript = await Confirm.prompt({
