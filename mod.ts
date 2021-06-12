@@ -22,9 +22,9 @@ type Options = {
 };
 
 const cmd = new Command<Options>()
-  .name("basecamp")
+  .name("dais")
   .version("0.1.0")
-  .description("Adds ESLint and Prettier configurations to your project.")
+  .description("The platform for your throne.")
   .throwErrors()
   .option("--typescript", "Use TypeScript.")
   .option("--eslint", "Use ESLint.")
