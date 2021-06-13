@@ -106,7 +106,7 @@ const cmd = new Command<Options>()
           },
         },
         {
-          value: "Imports",
+          value: "Import",
           action: () => {
             devPackages.push("eslint-plugin-import");
             languageConfigs.push("plugin:import/recommended");
@@ -136,7 +136,7 @@ const cmd = new Command<Options>()
             "plugin:react-hooks/recommended",
           );
           additionalConfigOptions.push({
-            value: "React A11y",
+            value: "JSX A11y",
             action: () => {
               devPackages.push("eslint-plugin-jsx-a11y");
               frameworkConfigs.push("plugin:jsx-a11y/recommended");
@@ -146,7 +146,7 @@ const cmd = new Command<Options>()
       }
 
       await actionCheckboxPrompt({
-        message: "Additional Rules",
+        message: "ESLint Configurations?",
         options: additionalConfigOptions,
       });
 
@@ -166,12 +166,8 @@ const cmd = new Command<Options>()
       fileExt = await Select.prompt({
         message: "Configuration File Extension?",
         options: [...fileExts],
-        default: "js",
       }) as FileExt,
     } = options;
-
-    await packageManager.add(...packages);
-    await packageManager.addDev(...devPackages);
 
     const configurationWriter = getConfigurationWriter(fileExt);
 
@@ -182,6 +178,9 @@ const cmd = new Command<Options>()
     if (esLintConfig) {
       configurationWriter(".eslintrc", esLintConfig);
     }
+
+    await packageManager.add(...packages);
+    await packageManager.addDev(...devPackages);
   });
 
 try {
