@@ -10,6 +10,8 @@ export {
 export {
   Checkbox,
   Confirm,
+  Input,
+  Number,
   Select,
 } from "https://deno.land/x/cliffy@v0.19.1/prompt/mod.ts";
 export type {

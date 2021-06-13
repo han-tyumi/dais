@@ -8,6 +8,7 @@ import {
   PackageManagerCommand,
   packageManagerCommands,
 } from "./package_manager.ts";
+import { configure } from "./configurator.ts";
 import { FileExt, fileExts, getConfigurationWriter } from "./utils.ts";
 import { ESLintConfig } from "./eslint.d.ts";
 import { PrettierConfig } from "./prettier.d.ts";
@@ -59,16 +60,6 @@ const cmd = new Command<Options>()
         message: "TypeScript?",
         default: true,
       }),
-
-      prettier = await Confirm.prompt({
-        message: "Prettier?",
-        default: true,
-      }),
-
-      eslint = await Confirm.prompt({
-        message: "ESLint?",
-        default: true,
-      }),
     } = options;
 
     const packages: string[] = [];
@@ -87,15 +78,70 @@ const cmd = new Command<Options>()
       devPackages.push("typescript");
     }
 
+    const {
+      prettier = await Confirm.prompt({
+        message: "Prettier?",
+        default: true,
+      }),
+    } = options;
+
     let prettierConfig: PrettierConfig | undefined;
     if (prettier) {
       devPackages.push("prettier");
 
-      prettierConfig = {
-        semi: false,
-        singleQuote: true,
-      };
+      const configurePrettier = await Confirm.prompt({
+        message: "Configure Prettier Here?",
+        default: false,
+      });
+
+      if (configurePrettier) {
+        prettierConfig = await configure({
+          printWidth: 80,
+          tabWidth: 2,
+          useTabs: false,
+          semi: true,
+          singleQuote: false,
+          quoteProps: {
+            options: ["as-needed", "consistent", "preserve"],
+            default: "as-needed",
+          },
+          jsxSingleQuote: false,
+          trailingComma: { options: ["es5", "none", "all"], default: "es5" },
+          bracketSpacing: true,
+          jsxBracketSameLine: false,
+          arrowParens: { options: ["always", "avoid"], default: "always" },
+          rangeStart: 0,
+          rangeEnd: Infinity,
+          parser: "Default",
+          filepath: "Default",
+          requirePragma: false,
+          insertPragma: false,
+          proseWrap: {
+            options: ["always", "never", "preserve"],
+            default: "preserve",
+          },
+          htmlWhitespaceSensitivity: {
+            options: ["css", "strict", "ignore"],
+            default: "css",
+          },
+          vueIndentScriptAndStyle: false,
+          endOfLine: { options: ["lf", "crlf", "cr", "auto"], default: "lf" },
+          embeddedLanguageFormatting: {
+            options: ["auto", "off"],
+            default: "auto",
+          },
+        });
+      } else {
+        prettierConfig = {};
+      }
     }
+
+    const {
+      eslint = await Confirm.prompt({
+        message: "ESLint?",
+        default: true,
+      }),
+    } = options;
 
     let esLintConfig: ESLintConfig | undefined;
     if (eslint) {

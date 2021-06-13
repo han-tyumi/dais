@@ -6,6 +6,10 @@ type StringifyOptions = {
 };
 
 function formatObject(obj: Record<string, unknown>, options: StringifyOptions) {
+  if (!Object.keys(obj).length) {
+    return "{}";
+  }
+
   const { indentSize, indentLevel } = options;
   const spaces = " ".repeat(indentSize * indentLevel);
 
@@ -21,6 +25,10 @@ function formatObject(obj: Record<string, unknown>, options: StringifyOptions) {
 }
 
 function formatArray(arr: unknown[], options: StringifyOptions) {
+  if (!arr.length) {
+    return "[]";
+  }
+
   const { indentSize, indentLevel } = options;
   const spaces = " ".repeat(indentSize * indentLevel);
 
