@@ -10,7 +10,7 @@ export async function commandExists(command: string) {
   return status.success;
 }
 
-export const fileExts = ["json", "yml", "js"] as const;
+export const fileExts = ["json", "yml", "yaml", "js"] as const;
 
 export type FileExt = typeof fileExts[number];
 type Config = Record<string, unknown>;
@@ -21,6 +21,7 @@ export function getConfigurationWriter(fileExt: FileExt) {
       case "json":
         return (config: Config) => JSON.stringify(config, null, 2);
       case "yml":
+      case "yaml":
         return YAML.stringify;
       case "js":
         return JS.stringify;
