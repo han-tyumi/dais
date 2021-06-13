@@ -1,36 +1,49 @@
-import { existsSync } from "./deps.ts";
+import { existsSync, Select } from "./deps.ts";
 import { commandExists } from "./utils.ts";
 
-export type PackageManagerCommand = "yarn" | "npm";
+export const packageManagerCommands = ["pnpm", "yarn", "npm"] as const;
+export type PackageManagerCommand = typeof packageManagerCommands[number];
+
+const foundPackageManagers = await (async () => {
+  const results = await Promise.all(packageManagerCommands.map(commandExists));
+  return packageManagerCommands.filter((_, i) => results[i]);
+})();
 
 export class PackageManager {
   private initCommand = "init";
   private addCommand: string;
   private devFlag: string;
 
-  static async init(prefer: PackageManagerCommand = "yarn") {
+  static async init(command?: PackageManagerCommand) {
     if (!await commandExists("node")) {
-      throw new Error("node does not exist");
+      throw new Error("node not found");
     }
 
-    if (existsSync("package.json")) {
-      return new PackageManager(
-        existsSync("yarn.lock") ? "yarn" : (existsSync("package-lock.json") ||
-            existsSync("npm-shrinkwrap.json"))
-          ? "npm"
-          : prefer === "yarn" && await commandExists("yarn")
-          ? "yarn"
-          : "npm",
-      );
+    if (!command) {
+      if (
+        existsSync("package-lock.json") || existsSync("npm-shrinkwrap.json")
+      ) {
+        command = "npm";
+      } else if (existsSync("yarn.lock")) {
+        command = "yarn";
+      } else if (existsSync("pnpm-lock.yaml")) {
+        command = "pnpm";
+      } else {
+        command = await Select.prompt({
+          message: "Package Manager?",
+          options: foundPackageManagers,
+        }) as PackageManagerCommand;
+      }
     }
 
-    const packageManager = new PackageManager(
-      prefer === "yarn" && await commandExists("yarn") ? "yarn" : "npm",
-    );
+    if (!foundPackageManagers.includes(command)) {
+      throw new Error(`${command} not found`);
+    }
 
-    await packageManager.init();
+    const packageManager = new PackageManager(command);
+
     if (!existsSync("package.json")) {
-      throw new Error("package.json not initialized");
+      await packageManager.init();
     }
 
     return packageManager;
@@ -38,12 +51,16 @@ export class PackageManager {
 
   constructor(readonly command: PackageManagerCommand = "yarn") {
     switch (command) {
+      case "npm":
+        this.addCommand = "install";
+        this.devFlag = "--save-dev";
+        break;
       case "yarn":
         this.addCommand = "add";
         this.devFlag = "--dev";
         break;
-      case "npm":
-        this.addCommand = "install";
+      case "pnpm":
+        this.addCommand = "add";
         this.devFlag = "--save-dev";
         break;
       default:

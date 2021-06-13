@@ -3,7 +3,11 @@ import {
   ActionCheckboxOption,
   actionCheckboxPrompt,
 } from "./action-checkbox.ts";
-import { PackageManager } from "./package_manager.ts";
+import {
+  PackageManager,
+  PackageManagerCommand,
+  packageManagerCommands,
+} from "./package_manager.ts";
 import { FileExt, fileExts, getConfigurationWriter } from "./utils.ts";
 import { ESLintConfig } from "./eslint.d.ts";
 import { PrettierConfig } from "./prettier.d.ts";
@@ -13,6 +17,7 @@ const frameworkType = new EnumType(frameworks);
 
 type Framework = typeof frameworks[number];
 
+const packageManagerType = new EnumType(packageManagerCommands);
 const fileExtType = new EnumType(fileExts);
 
 type Options = {
@@ -20,7 +25,7 @@ type Options = {
   eslint?: true;
   prettier?: true;
   framework?: Framework;
-  npm?: true;
+  packageManager?: PackageManagerCommand;
   fileExt?: FileExt;
 };
 
@@ -34,12 +39,15 @@ const cmd = new Command<Options>()
   .option("--prettier", "Use Prettier.")
   .type("framework", frameworkType)
   .option("--framework <name:framework>", "Use a specific framework.")
-  .option("--npm", "Use npm instead of yarn if found.")
+  .type("package-manager", packageManagerType)
+  .option(
+    "--package-manager, --pm <name:package-manager>",
+    "Which package manager to use.",
+  )
   .type("file-ext", fileExtType)
-  .option("--file-ext <file-ext>", "The configuration file type to use.")
+  .option("--file-ext <ext:file-ext>", "The configuration file type to use.")
   .action(async (options) => {
-    const { npm } = options;
-    const packageManager = await PackageManager.init(npm ? "npm" : "yarn");
+    const packageManager = await PackageManager.init(options.packageManager);
 
     const {
       framework = await Select.prompt({
