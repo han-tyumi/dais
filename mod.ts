@@ -4,7 +4,7 @@ import {
   actionCheckboxPrompt,
 } from "./action-checkbox.ts";
 import { PackageManager } from "./package_manager.ts";
-import { getConfigurationWriter } from "./utils.ts";
+import { FileExt, fileExts, getConfigurationWriter } from "./utils.ts";
 import { ESLintConfig } from "./eslint.d.ts";
 import { PrettierConfig } from "./prettier.d.ts";
 
@@ -13,13 +13,15 @@ const frameworkType = new EnumType(frameworks);
 
 type Framework = typeof frameworks[number];
 
+const fileExtType = new EnumType(fileExts);
+
 type Options = {
   typescript?: true;
   eslint?: true;
   prettier?: true;
   framework?: Framework;
   npm?: true;
-  yaml?: true;
+  fileExt?: FileExt;
 };
 
 const cmd = new Command<Options>()
@@ -33,28 +35,32 @@ const cmd = new Command<Options>()
   .type("framework", frameworkType)
   .option("--framework <name:framework>", "Use a specific framework.")
   .option("--npm", "Use npm instead of yarn if found.")
-  .option("--yaml", "Use YAML instead of JSON for configuration files.")
+  .type("file-ext", fileExtType)
+  .option("--file-ext <file-ext>", "The configuration file type to use.")
   .action(async (options) => {
     const { npm } = options;
     const packageManager = await PackageManager.init(npm ? "npm" : "yarn");
 
     const {
-      typescript = await Confirm.prompt({
-        message: "TypeScript?",
-        default: true,
-      }),
-      eslint = await Confirm.prompt({
-        message: "ESLint?",
-        default: true,
-      }),
-      prettier = await Confirm.prompt({
-        message: "Prettier?",
-        default: true,
-      }),
       framework = await Select.prompt({
         message: "Framework?",
         options: ["None", ...frameworks],
       }) as "None" | Framework,
+
+      typescript = await Confirm.prompt({
+        message: "TypeScript?",
+        default: true,
+      }),
+
+      prettier = await Confirm.prompt({
+        message: "Prettier?",
+        default: true,
+      }),
+
+      eslint = await Confirm.prompt({
+        message: "ESLint?",
+        default: true,
+      }),
     } = options;
 
     const packages: string[] = [];
@@ -156,11 +162,18 @@ const cmd = new Command<Options>()
       ];
     }
 
+    const {
+      fileExt = await Select.prompt({
+        message: "Configuration File Extension?",
+        options: [...fileExts],
+        default: "js",
+      }) as FileExt,
+    } = options;
+
     await packageManager.add(...packages);
     await packageManager.addDev(...devPackages);
 
-    const { yaml } = options;
-    const configurationWriter = getConfigurationWriter(yaml ? "yml" : "json");
+    const configurationWriter = getConfigurationWriter(fileExt);
 
     if (prettierConfig) {
       configurationWriter(".prettierrc", prettierConfig);

@@ -1,4 +1,5 @@
 import { YAML } from "./deps.ts";
+import * as JS from "./js.ts";
 
 export async function commandExists(command: string) {
   const status = await Deno.run({
@@ -9,7 +10,9 @@ export async function commandExists(command: string) {
   return status.success;
 }
 
-type FileExt = "json" | "yml";
+export const fileExts = ["json", "yml", "js"] as const;
+
+export type FileExt = typeof fileExts[number];
 type Config = Record<string, unknown>;
 
 export function getConfigurationWriter(fileExt: FileExt) {
@@ -19,6 +22,8 @@ export function getConfigurationWriter(fileExt: FileExt) {
         return (config: Config) => JSON.stringify(config, null, 2);
       case "yml":
         return YAML.stringify;
+      case "js":
+        return JS.stringify;
     }
   })();
 
