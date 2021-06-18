@@ -2,13 +2,19 @@ import { Command, Confirm, EnumType, Select } from "./deps.ts";
 import {
   ActionCheckboxOption,
   actionCheckboxPrompt,
-} from "./action-checkbox.ts";
+} from "./action_checkbox.ts";
 import {
   PackageManager,
   PackageManagerCommand,
   packageManagerCommands,
 } from "./package_manager.ts";
-import { configure } from "./configurator.ts";
+import {
+  BooleanEntry,
+  ChoiceEntry,
+  NumberEntry,
+  Record,
+  StringEntry,
+} from "./record/mod.ts";
 import { FileExt, fileExts, getConfigurationWriter } from "./utils.ts";
 import { ESLintConfig } from "./eslint.d.ts";
 import { PrettierConfig } from "./prettier.d.ts";
@@ -91,46 +97,40 @@ const cmd = new Command<Options>()
 
       const configurePrettier = await Confirm.prompt({
         message: "Configure Prettier Here?",
-        default: false,
+        default: true,
       });
 
       if (configurePrettier) {
-        prettierConfig = await configure({
-          printWidth: 80,
-          tabWidth: 2,
-          useTabs: false,
-          semi: true,
-          singleQuote: false,
-          quoteProps: {
-            options: ["as-needed", "consistent", "preserve"],
-            default: "as-needed",
-          },
-          jsxSingleQuote: false,
-          trailingComma: { options: ["es5", "none", "all"], default: "es5" },
-          bracketSpacing: true,
-          jsxBracketSameLine: false,
-          arrowParens: { options: ["always", "avoid"], default: "always" },
-          rangeStart: 0,
-          rangeEnd: Infinity,
-          parser: "Default",
-          filepath: "Default",
-          requirePragma: false,
-          insertPragma: false,
-          proseWrap: {
-            options: ["always", "never", "preserve"],
-            default: "preserve",
-          },
-          htmlWhitespaceSensitivity: {
-            options: ["css", "strict", "ignore"],
-            default: "css",
-          },
-          vueIndentScriptAndStyle: false,
-          endOfLine: { options: ["lf", "crlf", "cr", "auto"], default: "lf" },
-          embeddedLanguageFormatting: {
-            options: ["auto", "off"],
-            default: "auto",
-          },
-        });
+        prettierConfig = Record({
+          printWidth: NumberEntry(80),
+          tabWidth: NumberEntry(2),
+          useTabs: BooleanEntry(false),
+          semi: BooleanEntry(true),
+          singleQuote: BooleanEntry(false),
+          quoteProps: ChoiceEntry(
+            ["as-needed", "consistent", "preserve"],
+            "as-needed",
+          ),
+          jsxSingleQuote: BooleanEntry(false),
+          trailingComma: ChoiceEntry(["es5", "none", "all"], "es5"),
+          bracketSpacing: BooleanEntry(true),
+          jsxBracketSameLine: BooleanEntry(false),
+          arrowParens: ChoiceEntry(["always", "avoid"], "always"),
+          rangeStart: NumberEntry(0),
+          rangeEnd: NumberEntry(Infinity),
+          parser: StringEntry(null),
+          filepath: StringEntry(null),
+          requirePragma: BooleanEntry(false),
+          insertPragma: BooleanEntry(false),
+          proseWrap: ChoiceEntry(["always", "never", "preserve"], "preserve"),
+          htmlWhitespaceSensitivity: ChoiceEntry(
+            ["css", "strict", "ignore"],
+            "css",
+          ),
+          vueIndentScriptAndStyle: BooleanEntry(false),
+          endOfLine: ChoiceEntry(["lf", "crlf", "cr", "auto"], "lf"),
+          embeddedLanguageFormatting: ChoiceEntry(["auto", "off"], "auto"),
+        }).prompt();
       } else {
         prettierConfig = {};
       }
