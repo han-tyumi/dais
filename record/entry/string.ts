@@ -100,16 +100,24 @@ export function StringEntry(defaultValue: string | null): EntryFn<string> {
               break;
 
             case "d":
-              this.buffer = this.value = this.defaultValue;
+              this.default();
               break;
 
             case "n":
-              this.buffer = this.value = null;
+              this.null();
               break;
           }
         }
 
         return interrupt;
+      },
+
+      default() {
+        this.buffer = this.value = this.defaultValue;
+      },
+
+      null() {
+        this.buffer = this.value = null;
       },
     } as StringEntry;
   };

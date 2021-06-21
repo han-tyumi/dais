@@ -25,11 +25,11 @@ export function BooleanEntry(defaultValue: boolean | null): EntryFn<boolean> {
           break;
 
         case "d":
-          this.displayValue = s(this.value = this.defaultValue);
+          this.default();
           break;
 
         case "n":
-          this.displayValue = s(this.value = null);
+          this.null();
           break;
 
         default:
@@ -37,6 +37,14 @@ export function BooleanEntry(defaultValue: boolean | null): EntryFn<boolean> {
       }
 
       return true;
+    },
+
+    default() {
+      this.displayValue = s(this.value = this.defaultValue);
+    },
+
+    null() {
+      this.displayValue = s(this.value = null);
     },
   });
 }

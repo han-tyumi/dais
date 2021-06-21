@@ -26,7 +26,6 @@ export interface BaseEntry<T, V = T | null> {
   toString(): string;
 }
 
-// TODO: add Entry methods for default and null as every Entry should support this
 // TODO: support non-nullable Entries (default)
 // TODO: try to refactor so it's not needed to spread this for Entries
 
@@ -59,9 +58,11 @@ export function BaseEntry<T>(options: BaseEntryOptions<T>): BaseEntry<T> {
 
 export type EntryValue = boolean | number | string | null;
 
-export interface Entry<T extends EntryValue = any> extends BaseEntry<T> {
+export interface Entry<T extends EntryValue = EntryValue> extends BaseEntry<T> {
   hint(): [hint: string, interrupt: boolean];
   handleInput(key: KeyCode): boolean;
+  default(): void;
+  null(): void;
 }
 
 export type EntryFn<T extends EntryValue> = (

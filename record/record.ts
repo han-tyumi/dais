@@ -12,6 +12,7 @@ import { theme } from "./theme.ts";
 const hint = genHint(
   ["up", "move up"],
   ["down", "move down"],
+  ["ctrl+d", "all default"],
   ["ctrl+s", "save"],
   ["ctrl+c", "cancel"],
 );
@@ -21,7 +22,7 @@ interface Values {
 }
 
 interface RecordConfig {
-  [key: string]: EntryFn<any> | RecordConfig;
+  [key: string]: EntryFn<EntryValue> | RecordConfig;
 }
 
 type Entries = (Entry | Record)[];
@@ -34,7 +35,6 @@ interface Record {
   toString(): string;
 }
 
-// TODO: support setting all to default
 // TODO: support fuzzy key / value search
 export function Record(
   record: RecordConfig,
@@ -150,13 +150,15 @@ export function Record(
               }
               break;
           }
-        }
 
-        if (key.name === "c" && key.ctrl) {
-          cancelled = true;
-          break;
-        } else if (key.name === "s" && key.ctrl) {
-          break;
+          if (key.name === "c" && key.ctrl) {
+            cancelled = true;
+            break;
+          } else if (key.name === "s" && key.ctrl) {
+            break;
+          } else if (key.name === "d" && key.ctrl) {
+            entries.forEach((entry) => isEntry(entry) && entry.default());
+          }
         }
 
         tty.cursorRestore.eraseDown();

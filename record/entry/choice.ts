@@ -51,13 +51,11 @@ export function ChoiceEntry(
             break;
 
           case "d":
-            this.displayValue = q(this.value = this.defaultValue);
-            index = defaultIndex;
+            this.default();
             break;
 
           case "n":
-            this.displayValue = s(this.value = null);
-            index = -1;
+            this.null();
             break;
         }
 
@@ -66,6 +64,16 @@ export function ChoiceEntry(
         }
 
         return interrupt;
+      },
+
+      default() {
+        this.displayValue = q(this.value = this.defaultValue);
+        index = defaultIndex;
+      },
+
+      null() {
+        this.displayValue = s(this.value = null);
+        index = -1;
       },
     };
   };

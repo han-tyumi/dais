@@ -132,16 +132,24 @@ export function NumberEntry(
               break;
 
             case "d":
-              this.buffer = s(this.value = this.defaultValue);
+              this.default();
               break;
 
             case "n":
-              this.buffer = s(this.value = null);
+              this.null();
               break;
           }
         }
 
         return interrupt;
+      },
+
+      default() {
+        this.buffer = s(this.value = this.defaultValue);
+      },
+
+      null() {
+        this.buffer = s(this.value = null);
       },
     } as NumberEntry;
   };
