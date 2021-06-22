@@ -1,4 +1,4 @@
-import { colors, tty } from "../deps.ts";
+import { colors, keypress, tty } from "../deps.ts";
 import {
   Entry,
   EntryFn,
@@ -6,7 +6,7 @@ import {
   FormatOptions,
   isEntry,
 } from "./entry/entry.ts";
-import { genHint, keypress, write } from "./utils.ts";
+import { genHint, write } from "./utils.ts";
 import { theme } from "./theme.ts";
 
 const hint = genHint(
@@ -31,7 +31,7 @@ type Config = { [key: string]: Entry | Config };
 interface Record {
   entries: Entries;
   config: Config;
-  prompt(rows?: number): Values;
+  prompt(rows?: number): Promise<Values>;
   toString(): string;
 }
 
@@ -90,7 +90,7 @@ export function Record(
     entries,
     config,
 
-    prompt(rows = 7) {
+    async prompt(rows = 7) {
       rows = rows > this.entries.length ? this.entries.length : rows;
       const buffer = Math.ceil(rows / 2);
       let selection = 0;
@@ -123,15 +123,12 @@ export function Record(
           write("\n" + hint);
         }
 
-        const key = keypress();
-        if (!key) {
-          break;
-        }
+        const event = await keypress();
 
-        interrupt = isEntry(selected) ? selected.handleInput(key) : false;
+        interrupt = isEntry(selected) ? selected.handleInput(event) : false;
 
         if (!interrupt) {
-          switch (key.name) {
+          switch (event.key) {
             case "up":
               if (selection > 0) {
                 selection--;
@@ -151,12 +148,12 @@ export function Record(
               break;
           }
 
-          if (key.name === "c" && key.ctrl) {
+          if (event.key === "c" && event.ctrlKey) {
             cancelled = true;
             break;
-          } else if (key.name === "s" && key.ctrl) {
+          } else if (event.key === "s" && event.ctrlKey) {
             break;
-          } else if (key.name === "d" && key.ctrl) {
+          } else if (event.key === "d" && event.ctrlKey) {
             entries.forEach((entry) => isEntry(entry) && entry.default());
           }
         }

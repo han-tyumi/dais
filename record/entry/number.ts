@@ -39,13 +39,13 @@ export function NumberEntry(defaultValue: number | null, float = false) {
         this.displayValue = s(value) + (edit ? theme.base("_") : "");
       },
 
-      handleInput(key) {
+      handleInput(event) {
         let interrupt = false;
 
         if (edit) {
           interrupt = true;
 
-          switch (key.name) {
+          switch (event.key) {
             case "return":
               edit = false;
               if (buffer === "") {
@@ -99,8 +99,8 @@ export function NumberEntry(defaultValue: number | null, float = false) {
 
             default:
               if (
-                key.sequence && /\d/.test(key.sequence) ||
-                (float && key.sequence === "." &&
+                event.sequence && /\d/.test(event.sequence) ||
+                (float && event.sequence === "." &&
                   !buffer.includes("."))
               ) {
                 if (
@@ -109,7 +109,7 @@ export function NumberEntry(defaultValue: number | null, float = false) {
                 ) {
                   this.setBuffer("");
                 }
-                this.setBuffer(buffer + key.sequence);
+                this.setBuffer(buffer + event.sequence);
               }
               break;
           }
@@ -118,7 +118,7 @@ export function NumberEntry(defaultValue: number | null, float = false) {
             this.theme.value = theme.value;
           }
         } else {
-          switch (key.name) {
+          switch (event.key) {
             case "return":
               edit = true;
               this.theme.value = theme.value.italic;

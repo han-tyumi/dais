@@ -1,4 +1,4 @@
-import { colors, parse } from "../deps.ts";
+import { colors } from "../deps.ts";
 
 export function s(value: unknown) {
   return `${value}`;
@@ -16,18 +16,6 @@ export function genHint(...actions: HintAction[]) {
   return actions.map(([key, action]) =>
     colors.blue(`[${key}] `) + colors.brightBlue(action)
   ).join(colors.blue(" | "));
-}
-
-export function keypress() {
-  const data = new Uint8Array(8);
-
-  Deno.setRaw(Deno.stdin.rid, true);
-  const nread = Deno.stdin.readSync(data);
-  Deno.setRaw(Deno.stdin.rid, false);
-
-  if (nread !== null) {
-    return parse(data.subarray(0, nread))[0];
-  }
 }
 
 export function write(text: string) {

@@ -101,7 +101,7 @@ const cmd = new Command<Options>()
       });
 
       if (configurePrettier) {
-        prettierConfig = Record({
+        prettierConfig = await Record({
           printWidth: NumberEntry(80),
           tabWidth: NumberEntry(2),
           useTabs: BooleanEntry(false),

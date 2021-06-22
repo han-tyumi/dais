@@ -38,13 +38,13 @@ export function StringEntry(defaultValue: string | null) {
           : q(value.replaceAll("'", "\\'") + (edit ? theme.base("_") : ""));
       },
 
-      handleInput(key) {
+      handleInput(event) {
         let interrupt = false;
 
         if (edit) {
           interrupt = true;
 
-          switch (key.name) {
+          switch (event.key) {
             case "return":
               edit = false;
               this.value = buffer;
@@ -60,17 +60,17 @@ export function StringEntry(defaultValue: string | null) {
               break;
 
             default:
-              if (key.name === "l" && key.ctrl) {
+              if (event.key === "l" && event.ctrlKey) {
                 this.setBuffer("");
-              } else if (key.name === "d" && key.ctrl) {
+              } else if (event.key === "d" && event.ctrlKey) {
                 this.setBuffer(this.defaultValue);
-              } else if (key.name === "n" && key.ctrl) {
+              } else if (event.key === "n" && event.ctrlKey) {
                 this.setBuffer(null);
-              } else if (key.sequence?.length === 1) {
+              } else if (event.sequence?.length === 1) {
                 if (buffer === null) {
                   this.setBuffer("");
                 }
-                this.setBuffer(buffer + key.sequence);
+                this.setBuffer(buffer + event.sequence);
               }
               break;
           }
@@ -79,7 +79,7 @@ export function StringEntry(defaultValue: string | null) {
             this.theme.value = theme.value;
           }
         } else {
-          switch (key.name) {
+          switch (event.key) {
             case "return":
               edit = true;
               this.setBuffer(this.value);

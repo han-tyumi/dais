@@ -15,8 +15,8 @@ export function BooleanEntry(defaultValue: boolean | null) {
       return [hint, false];
     },
 
-    handleInput(key) {
-      switch (key.name) {
+    handleInput(event) {
+      switch (event.key) {
         case "right":
         case "left":
         case "space":

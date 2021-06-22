@@ -1,4 +1,4 @@
-import { KeyCode } from "../../deps.ts";
+import { KeyPressEvent } from "../../deps.ts";
 import { s } from "../utils.ts";
 import { theme } from "../theme.ts";
 
@@ -23,7 +23,7 @@ export interface BaseEntry<T extends EntryValue> {
 
 export interface ExtendedEntry<T extends EntryValue> extends BaseEntry<T> {
   hint(): [hint: string, interrupt: boolean];
-  handleInput(key: KeyCode): boolean;
+  handleInput(event: KeyPressEvent): boolean;
   default(): void;
   null(): void;
 }

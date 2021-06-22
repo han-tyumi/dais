@@ -26,10 +26,10 @@ export function ChoiceEntry(choices: string[], defaultValue: string | null) {
         ];
       },
 
-      handleInput(key) {
+      handleInput(event) {
         let interrupt = false;
 
-        switch (key.name) {
+        switch (event.key) {
           case "right":
           case "space":
           case "return":
