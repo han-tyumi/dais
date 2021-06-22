@@ -22,7 +22,7 @@ interface Values {
 }
 
 interface RecordConfig {
-  [key: string]: EntryFn<EntryValue> | RecordConfig;
+  [key: string]: EntryFn | RecordConfig;
 }
 
 type Entries = (Entry | Record)[];

@@ -1,6 +1,6 @@
 import { colors } from "../../deps.ts";
 import { genHint, q, s } from "../utils.ts";
-import { BaseEntry, EntryFn } from "./entry.ts";
+import { Entry } from "./entry.ts";
 
 const hint = genHint(
   ["right|space|return", "next"],
@@ -9,23 +9,15 @@ const hint = genHint(
   ["n", "null"],
 );
 
-export function ChoiceEntry(
-  choices: string[],
-  defaultValue: string | null,
-): EntryFn<string> {
-  return (key, format) => {
+export function ChoiceEntry(choices: string[], defaultValue: string | null) {
+  return Entry<string | null>((getBaseEntry) => {
     const defaultIndex = defaultValue !== null
       ? choices.indexOf(defaultValue)
       : -1;
     let index = defaultIndex;
 
     return {
-      ...BaseEntry({
-        key,
-        defaultValue,
-        displayValue: q(defaultValue),
-        format,
-      }),
+      ...getBaseEntry(defaultValue, q(defaultValue)),
 
       hint() {
         return [
@@ -76,5 +68,5 @@ export function ChoiceEntry(
         index = -1;
       },
     };
-  };
+  });
 }

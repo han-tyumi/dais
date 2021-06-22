@@ -1,7 +1,6 @@
-import { colors } from "../../deps.ts";
 import { genHint, s } from "../utils.ts";
 import { theme } from "../theme.ts";
-import { BaseEntry, Entry, EntryFn } from "./entry.ts";
+import { Entry, ExtendedEntry } from "./entry.ts";
 
 const editHint = genHint(
   ["return", "save"],
@@ -17,34 +16,27 @@ const nonEditHint = genHint(
   ["n", "null"],
 );
 
-// TODO: explore extracting out this functionality
-interface NumberEntry extends Entry<number> {
-  _buffer: string;
-  get buffer(): this["_buffer"];
-  set buffer(value);
+export interface NumberEntry extends ExtendedEntry<number | null> {
+  setBuffer(value: string): void;
 }
 
-export function NumberEntry(
-  defaultValue: number | null,
-  float = false,
-): EntryFn<number> {
-  return (key, format) => {
+export function NumberEntry(defaultValue: number | null, float = false) {
+  return Entry<number | null>((getBaseEntry) => {
     let edit = false;
 
+    // TODO: explore extracting out this functionality
+    let buffer = s(defaultValue);
+
     return {
-      ...BaseEntry({ key, defaultValue, format }),
+      ...getBaseEntry(defaultValue),
 
       hint() {
         return [edit ? editHint : nonEditHint, edit];
       },
 
-      _buffer: s(defaultValue),
-      get buffer() {
-        return this._buffer;
-      },
-      set buffer(value) {
-        this._buffer = value;
-        this.displayValue = s(value) + (edit ? colors.reset("_") : "");
+      setBuffer(value: string) {
+        buffer = value;
+        this.displayValue = s(value) + (edit ? theme.base("_") : "");
       },
 
       handleInput(key) {
@@ -56,66 +48,68 @@ export function NumberEntry(
           switch (key.name) {
             case "return":
               edit = false;
-              if (this.buffer === "") {
-                this.buffer = s(this.value = 0);
-              } else if (this.buffer === "null") {
-                this.buffer = s(this.value = null);
-              } else if (this.buffer === "Infinity") {
-                this.buffer = s(this.value = Infinity);
+              if (buffer === "") {
+                this.setBuffer(s(this.value = 0));
+              } else if (buffer === "null") {
+                this.setBuffer(s(this.value = null));
+              } else if (buffer === "Infinity") {
+                this.setBuffer(s(this.value = Infinity));
               } else {
                 try {
-                  this.buffer = s(
+                  this.setBuffer(s(
                     this.value = float
-                      ? parseFloat(this.buffer)
-                      : parseInt(this.buffer, 10),
-                  );
+                      ? parseFloat(buffer)
+                      : parseInt(buffer, 10),
+                  ));
                 } catch {
-                  this.buffer = s(this.value);
+                  this.setBuffer(s(this.value));
                 }
               }
               break;
 
             case "escape":
               edit = false;
-              this.buffer = s(this.value);
+              this.setBuffer(s(this.value));
               break;
 
             case "backspace":
-              this.buffer = (this.buffer === "Infinity" ||
-                  this.buffer === "null")
-                ? ""
-                : this.buffer.slice(0, -1);
+              this.setBuffer(
+                (buffer === "Infinity" ||
+                    buffer === "null")
+                  ? ""
+                  : buffer.slice(0, -1),
+              );
               break;
 
             case "d":
-              this.buffer = s(this.defaultValue);
+              this.setBuffer(s(this.defaultValue));
               break;
 
             case "n":
-              this.buffer = "null";
+              this.setBuffer("null");
               break;
 
             case "i":
-              this.buffer = "Infinity";
+              this.setBuffer("Infinity");
               break;
 
             case "l":
-              this.buffer = "";
+              this.setBuffer("");
               break;
 
             default:
               if (
                 key.sequence && /\d/.test(key.sequence) ||
                 (float && key.sequence === "." &&
-                  !this.buffer.includes("."))
+                  !buffer.includes("."))
               ) {
                 if (
-                  this.buffer === "Infinity" ||
-                  this.buffer === "null"
+                  buffer === "Infinity" ||
+                  buffer === "null"
                 ) {
-                  this.buffer = "";
+                  this.setBuffer("");
                 }
-                this.buffer += key.sequence;
+                this.setBuffer(buffer + key.sequence);
               }
               break;
           }
@@ -128,7 +122,7 @@ export function NumberEntry(
             case "return":
               edit = true;
               this.theme.value = theme.value.italic;
-              this.buffer = s(this.value);
+              this.setBuffer(s(this.value));
               break;
 
             case "d":
@@ -145,12 +139,12 @@ export function NumberEntry(
       },
 
       default() {
-        this.buffer = s(this.value = this.defaultValue);
+        this.setBuffer(s(this.value = this.defaultValue));
       },
 
       null() {
-        this.buffer = s(this.value = null);
+        this.setBuffer(s(this.value = null));
       },
     } as NumberEntry;
-  };
+  });
 }

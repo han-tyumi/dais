@@ -1,5 +1,5 @@
 import { genHint, s } from "../utils.ts";
-import { BaseEntry, EntryFn } from "./entry.ts";
+import { Entry } from "./entry.ts";
 
 const hint = genHint(
   ["right|left|space|return", "toggle"],
@@ -7,9 +7,9 @@ const hint = genHint(
   ["n", "null"],
 );
 
-export function BooleanEntry(defaultValue: boolean | null): EntryFn<boolean> {
-  return (key, format) => ({
-    ...BaseEntry({ key, defaultValue, format }),
+export function BooleanEntry(defaultValue: boolean | null) {
+  return Entry<boolean | null>((getBaseEntry) => ({
+    ...getBaseEntry(defaultValue),
 
     hint() {
       return [hint, false];
@@ -46,5 +46,5 @@ export function BooleanEntry(defaultValue: boolean | null): EntryFn<boolean> {
     null() {
       this.displayValue = s(this.value = null);
     },
-  });
+  }));
 }

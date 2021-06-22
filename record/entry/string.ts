@@ -1,7 +1,6 @@
-import { colors } from "../../deps.ts";
 import { genHint, q, s } from "../utils.ts";
 import { theme } from "../theme.ts";
-import { BaseEntry, Entry, EntryFn } from "./entry.ts";
+import { Entry, ExtendedEntry } from "./entry.ts";
 
 const editHint = genHint(
   ["ctrl+l", "clear"],
@@ -16,37 +15,27 @@ const nonEditHint = genHint(
   ["n", "null"],
 );
 
-interface StringEntry extends Entry<string> {
-  _buffer: string | null;
-  get buffer(): this["_buffer"];
-  set buffer(value);
+export interface StringEntry extends ExtendedEntry<string | null> {
+  setBuffer(value: string | null): void;
 }
 
-export function StringEntry(defaultValue: string | null): EntryFn<string> {
-  return (key, format) => {
+export function StringEntry(defaultValue: string | null) {
+  return Entry<string | null>((getBaseEntry) => {
     let edit = false;
+    let buffer = defaultValue;
 
     return {
-      ...BaseEntry({
-        key,
-        defaultValue,
-        displayValue: q(defaultValue),
-        format,
-      }),
+      ...getBaseEntry(defaultValue, q(defaultValue)),
 
       hint() {
         return [edit ? editHint : nonEditHint, edit];
       },
 
-      _buffer: defaultValue,
-      get buffer() {
-        return this._buffer;
-      },
-      set buffer(value) {
-        this._buffer = value;
+      setBuffer(value: string | null) {
+        buffer = value;
         this.displayValue = value === null
           ? s(value)
-          : q(value.replaceAll("'", "\\'") + (edit ? colors.reset("_") : ""));
+          : q(value.replaceAll("'", "\\'") + (edit ? theme.base("_") : ""));
       },
 
       handleInput(key) {
@@ -58,32 +47,30 @@ export function StringEntry(defaultValue: string | null): EntryFn<string> {
           switch (key.name) {
             case "return":
               edit = false;
-              this.value = this.buffer;
-              this.buffer = this.value;
+              this.value = buffer;
+              this.setBuffer(this.value);
               break;
             case "escape":
               edit = false;
-              this.buffer = this.value;
+              this.setBuffer(this.value);
               break;
 
             case "backspace":
-              this.buffer = this.buffer === null
-                ? ""
-                : this.buffer.slice(0, -1);
+              this.setBuffer(buffer === null ? "" : buffer.slice(0, -1));
               break;
 
             default:
               if (key.name === "l" && key.ctrl) {
-                this.buffer = "";
+                this.setBuffer("");
               } else if (key.name === "d" && key.ctrl) {
-                this.buffer = this.defaultValue;
+                this.setBuffer(this.defaultValue);
               } else if (key.name === "n" && key.ctrl) {
-                this.buffer = null;
+                this.setBuffer(null);
               } else if (key.sequence?.length === 1) {
-                if (this.buffer === null) {
-                  this.buffer = "";
+                if (buffer === null) {
+                  this.setBuffer("");
                 }
-                this.buffer += key.sequence;
+                this.setBuffer(buffer + key.sequence);
               }
               break;
           }
@@ -95,7 +82,7 @@ export function StringEntry(defaultValue: string | null): EntryFn<string> {
           switch (key.name) {
             case "return":
               edit = true;
-              this.buffer = this.value;
+              this.setBuffer(this.value);
               this.theme.value = theme.value.italic;
               break;
 
@@ -113,12 +100,12 @@ export function StringEntry(defaultValue: string | null): EntryFn<string> {
       },
 
       default() {
-        this.buffer = this.value = this.defaultValue;
+        this.setBuffer(this.value = this.defaultValue);
       },
 
       null() {
-        this.buffer = this.value = null;
+        this.setBuffer(this.value = null);
       },
     } as StringEntry;
-  };
+  });
 }
