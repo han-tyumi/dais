@@ -1,20 +1,34 @@
 import { colors, KeyPressEvent } from "../../deps.ts";
-import { genHint, q, s } from "../utils.ts";
-import { Entry } from "./entry.ts";
+import { genHint, HintAction, q, s } from "../utils.ts";
+import { Entry, EntryConstructor } from "./entry.ts";
 
-export type Value = string | null;
+export function ChoiceEntry(
+  choices: string[],
+  defaultValue: string,
+  nullable?: false,
+): EntryConstructor<string>;
 
-export function ChoiceEntry(choices: string[], defaultValue: Value) {
-  return class ChoiceEntry extends Entry<Value> {
-    protected static hint = genHint(
-      ["right|space|return", "next"],
-      ["left", "prev"],
-      ["d", "default"],
-      ["n", "null"],
-    );
+export function ChoiceEntry(
+  choices: string[],
+  defaultValue: string | null,
+  nullable: true,
+): EntryConstructor<string | null>;
 
+export function ChoiceEntry(
+  choices: string[],
+  defaultValue: null,
+  nullable?: true,
+): EntryConstructor<string | null>;
+
+export function ChoiceEntry(
+  choices: string[],
+  defaultValue: string | null,
+  nullable = defaultValue === null,
+): EntryConstructor<string | null> {
+  return class ChoiceEntry extends Entry<string | null> {
+    readonly nullable = nullable;
     readonly defaultValue = defaultValue;
-    value = defaultValue;
+    protected _value = defaultValue;
     protected displayValue = q(defaultValue);
 
     protected defaultIndex = defaultValue !== null
@@ -23,9 +37,19 @@ export function ChoiceEntry(choices: string[], defaultValue: Value) {
     protected index = this.defaultIndex;
 
     hint() {
+      const hintActions: HintAction[] = [
+        ["right|space|return", "next"],
+        ["left", "prev"],
+        ["d", "default"],
+      ];
+
+      if (this.nullable) {
+        hintActions.push(["n", "null"]);
+      }
+
       return [
         colors.cyan(`choices: [${choices.map(q).join(", ")}]\n`) +
-        ChoiceEntry.hint,
+        genHint(...hintActions),
         false,
       ] as [string, boolean];
     }
@@ -56,19 +80,19 @@ export function ChoiceEntry(choices: string[], defaultValue: Value) {
       }
 
       if (interrupt) {
-        this.displayValue = q(this.value = choices[this.index]);
+        this.displayValue = q(this._value = choices[this.index]);
       }
 
       return interrupt;
     }
 
     default() {
-      this.displayValue = q(this.value = this.defaultValue);
+      this.displayValue = q(this._value = this.defaultValue);
       this.index = this.defaultIndex;
     }
 
-    null() {
-      this.displayValue = s(this.value = null);
+    protected setNull() {
+      this.displayValue = s(this._value = null);
       this.index = -1;
     }
   };

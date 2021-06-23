@@ -13,8 +13,8 @@ export interface FormatOptions {
   maxFieldLen: number;
 }
 
-export interface EntryConstructor {
-  new (key: string, format: FormatOptions): Entry;
+export interface EntryConstructor<T extends EntryValue = EntryValue> {
+  new (key: string, format: FormatOptions): Entry<T>;
 }
 
 export abstract class Entry<T extends EntryValue = EntryValue> {
@@ -23,8 +23,14 @@ export abstract class Entry<T extends EntryValue = EntryValue> {
   static Number = NumberEntry;
   static String = StringEntry;
 
+  abstract readonly nullable: boolean;
+
   abstract readonly defaultValue: T;
-  abstract value: T;
+  protected abstract _value: T;
+  get value() {
+    return this._value;
+  }
+
   readonly displayKey: string;
   protected abstract displayValue: string;
 
@@ -41,7 +47,14 @@ export abstract class Entry<T extends EntryValue = EntryValue> {
   abstract hint(): [hint: string, interrupt: boolean];
   abstract handleInput(event: KeyPressEvent): boolean;
   abstract default(): void;
-  abstract null(): void;
+
+  protected abstract setNull(): void;
+
+  null() {
+    if (this.nullable) {
+      this.setNull();
+    }
+  }
 
   toString() {
     return this.displayKey +

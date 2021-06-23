@@ -1,23 +1,43 @@
 import { KeyPressEvent } from "../../deps.ts";
-import { genHint, s } from "../utils.ts";
-import { Entry } from "./entry.ts";
+import { genHint, HintAction, s } from "../utils.ts";
+import { Entry, EntryConstructor } from "./entry.ts";
 
-export type Value = boolean | null;
+export function BooleanEntry(
+  defaultValue: boolean,
+  nullable?: false,
+): EntryConstructor<boolean>;
 
-export function BooleanEntry(defaultValue: Value) {
-  return class BooleanEntry extends Entry<Value> {
-    protected static hint = genHint(
-      ["right|left|space|return", "toggle"],
-      ["d", "default"],
-      ["n", "null"],
-    );
+export function BooleanEntry(
+  defaultValue: boolean | null,
+  nullable: true,
+): EntryConstructor<boolean | null>;
 
+export function BooleanEntry(
+  defaultValue: null,
+  nullable?: true,
+): EntryConstructor<boolean | null>;
+
+export function BooleanEntry(
+  defaultValue: boolean | null,
+  nullable = defaultValue === null,
+): EntryConstructor<boolean | null> {
+  return class BooleanEntry extends Entry<boolean | null> {
+    readonly nullable = nullable;
     readonly defaultValue = defaultValue;
-    value = defaultValue;
+    protected _value = defaultValue;
     protected displayValue = s(defaultValue);
 
     hint() {
-      return [BooleanEntry.hint, false] as [string, boolean];
+      const hintActions: HintAction[] = [
+        ["right|left|space|return", "toggle"],
+        ["d", "default"],
+      ];
+
+      if (this.nullable) {
+        hintActions.push(["n", "null"]);
+      }
+
+      return [genHint(...hintActions), false] as [string, boolean];
     }
 
     handleInput(event: KeyPressEvent) {
@@ -26,7 +46,7 @@ export function BooleanEntry(defaultValue: Value) {
         case "left":
         case "space":
         case "return":
-          this.displayValue = s(this.value = !this.value);
+          this.displayValue = s(this._value = !this._value);
           break;
 
         case "d":
@@ -45,11 +65,11 @@ export function BooleanEntry(defaultValue: Value) {
     }
 
     default() {
-      this.displayValue = s(this.value = this.defaultValue);
+      this.displayValue = s(this._value = this.defaultValue);
     }
 
-    null() {
-      this.displayValue = s(this.value = null);
+    protected setNull() {
+      this.displayValue = s(this._value = null);
     }
   };
 }

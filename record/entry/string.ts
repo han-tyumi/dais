@@ -1,29 +1,31 @@
 import { KeyPressEvent } from "../../deps.ts";
-import { genHint, q, s } from "../utils.ts";
+import { genHint, HintAction, q, s } from "../utils.ts";
 import { theme } from "../theme.ts";
-import { Entry } from "./entry.ts";
+import { Entry, EntryConstructor } from "./entry.ts";
 
-export type Value = string | null;
+export function StringEntry(
+  defaultValue: string,
+  nullable?: false,
+): EntryConstructor<string>;
 
-export function StringEntry(defaultValue: Value) {
-  return class StringEntry extends Entry<Value> {
-    protected static hint = {
-      edit: genHint(
-        ["ctrl+l", "clear"],
-        ["return", "save"],
-        ["esc", "cancel"],
-        ["ctrl+d", "default"],
-        ["ctrl+n", "null"],
-      ),
-      default: genHint(
-        ["return", "edit"],
-        ["d", "default"],
-        ["n", "null"],
-      ),
-    };
+export function StringEntry(
+  defaultValue: string | null,
+  nullable: true,
+): EntryConstructor<string | null>;
 
+export function StringEntry(
+  defaultValue: null,
+  nullable?: true,
+): EntryConstructor<string | null>;
+
+export function StringEntry(
+  defaultValue: string | null,
+  nullable = defaultValue === null,
+): EntryConstructor<string | null> {
+  return class StringEntry extends Entry<string | null> {
+    readonly nullable = nullable;
     readonly defaultValue = defaultValue;
-    value = defaultValue;
+    protected _value = defaultValue;
     protected displayValue = q(defaultValue);
 
     protected edit = false;
@@ -41,13 +43,29 @@ export function StringEntry(defaultValue: Value) {
     }
 
     hint() {
-      return [
-        this.edit ? StringEntry.hint.edit : StringEntry.hint.default,
-        this.edit,
-      ] as [
-        string,
-        boolean,
-      ];
+      const hintActions: HintAction[] = [];
+
+      if (this.edit) {
+        hintActions.push(
+          ["return", "save"],
+          ["esc", "cancel"],
+          ["ctrl+l", "clear"],
+          ["ctrl+d", "default"],
+        );
+        if (this.nullable) {
+          hintActions.push(["ctrl+n", "null"]);
+        }
+      } else {
+        hintActions.push(
+          ["return", "edit"],
+          ["d", "default"],
+        );
+        if (this.nullable) {
+          hintActions.push(["n", "null"]);
+        }
+      }
+
+      return [genHint(...hintActions), this.edit] as [string, boolean];
     }
 
     handleInput(event: KeyPressEvent) {
@@ -59,12 +77,12 @@ export function StringEntry(defaultValue: Value) {
         switch (event.key) {
           case "return":
             this.edit = false;
-            this.value = this.buffer;
-            this.buffer = this.value;
+            this._value = this.buffer;
+            this.buffer = this._value;
             break;
           case "escape":
             this.edit = false;
-            this.buffer = this.value;
+            this.buffer = this._value;
             break;
 
           case "backspace":
@@ -77,7 +95,7 @@ export function StringEntry(defaultValue: Value) {
             } else if (event.key === "d" && event.ctrlKey) {
               this.buffer = this.defaultValue;
             } else if (event.key === "n" && event.ctrlKey) {
-              this.buffer = null;
+              this.null();
             } else if (event.sequence?.length === 1) {
               if (this.buffer === null) {
                 this.buffer = "";
@@ -94,7 +112,7 @@ export function StringEntry(defaultValue: Value) {
         switch (event.key) {
           case "return":
             this.edit = true;
-            this.buffer = this.value;
+            this.buffer = this._value;
             this.theme.value = theme.value.italic;
             break;
 
@@ -112,11 +130,14 @@ export function StringEntry(defaultValue: Value) {
     }
 
     default() {
-      this.buffer = this.value = this.defaultValue;
+      this.buffer = this._value = this.defaultValue;
     }
 
-    null() {
-      this.buffer = this.value = null;
+    protected setNull() {
+      this.buffer = null;
+      if (!this.edit) {
+        this._value = null;
+      }
     }
   };
 }

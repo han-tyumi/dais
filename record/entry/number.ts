@@ -1,12 +1,32 @@
 import { KeyPressEvent } from "../../deps.ts";
-import { genHint, s } from "../utils.ts";
+import { genHint, HintAction, s } from "../utils.ts";
 import { theme } from "../theme.ts";
-import { Entry } from "./entry.ts";
+import { Entry, EntryConstructor } from "./entry.ts";
 
-export type Value = number | null;
+export function NumberEntry(
+  defaultValue: number,
+  float?: boolean,
+  nullable?: false,
+): EntryConstructor<number>;
 
-export function NumberEntry(defaultValue: Value, float = false) {
-  return class NumberEntry extends Entry<Value> {
+export function NumberEntry(
+  defaultValue: number | null,
+  float: boolean,
+  nullable: true,
+): EntryConstructor<number | null>;
+
+export function NumberEntry(
+  defaultValue: null,
+  float?: boolean,
+  nullable?: true,
+): EntryConstructor<number | null>;
+
+export function NumberEntry(
+  defaultValue: number | null,
+  float = false,
+  nullable = defaultValue === null,
+): EntryConstructor<number | null> {
+  return class NumberEntry extends Entry<number | null> {
     protected static hint = {
       edit: genHint(
         ["return", "save"],
@@ -23,8 +43,9 @@ export function NumberEntry(defaultValue: Value, float = false) {
       ),
     };
 
+    readonly nullable = nullable;
     readonly defaultValue = defaultValue;
-    value = defaultValue;
+    protected _value = defaultValue;
     protected displayValue = s(defaultValue);
 
     protected edit = false;
@@ -40,13 +61,25 @@ export function NumberEntry(defaultValue: Value, float = false) {
     }
 
     hint() {
-      return [
-        this.edit ? NumberEntry.hint.edit : NumberEntry.hint.default,
-        this.edit,
-      ] as [
-        string,
-        boolean,
-      ];
+      const hintActions: HintAction[] = [];
+
+      if (this.edit) {
+        hintActions.push(
+          ["return", "save"],
+          ["esc", "cancel"],
+          ["l", "clear"],
+          ["i", "Infinity"],
+          ["d", "default"],
+        );
+      } else {
+        hintActions.push(["return", "edit"], ["d", "default"]);
+      }
+
+      if (this.nullable) {
+        hintActions.push(["n", "null"]);
+      }
+
+      return [genHint(...hintActions), this.edit] as [string, boolean];
     }
 
     handleInput(event: KeyPressEvent) {
@@ -59,27 +92,27 @@ export function NumberEntry(defaultValue: Value, float = false) {
           case "return":
             this.edit = false;
             if (this.buffer === "") {
-              this.buffer = s(this.value = 0);
+              this.buffer = s(this._value = 0);
             } else if (this.buffer === "null") {
-              this.buffer = s(this.value = null);
+              this.buffer = s(this._value = null);
             } else if (this.buffer === "Infinity") {
-              this.buffer = s(this.value = Infinity);
+              this.buffer = s(this._value = Infinity);
             } else {
               try {
                 this.buffer = s(
-                  this.value = float
+                  this._value = float
                     ? parseFloat(this.buffer)
                     : parseInt(this.buffer, 10),
                 );
               } catch {
-                this.buffer = s(this.value);
+                this.buffer = s(this._value);
               }
             }
             break;
 
           case "escape":
             this.edit = false;
-            this.buffer = s(this.value);
+            this.buffer = s(this._value);
             break;
 
           case "backspace":
@@ -93,7 +126,7 @@ export function NumberEntry(defaultValue: Value, float = false) {
             break;
 
           case "n":
-            this.buffer = "null";
+            this.null();
             break;
 
           case "i":
@@ -125,7 +158,7 @@ export function NumberEntry(defaultValue: Value, float = false) {
           case "return":
             this.edit = true;
             this.theme.value = theme.value.italic;
-            this.buffer = s(this.value);
+            this.buffer = s(this._value);
             break;
 
           case "d":
@@ -142,11 +175,14 @@ export function NumberEntry(defaultValue: Value, float = false) {
     }
 
     default() {
-      this.buffer = s(this.value = this.defaultValue);
+      this.buffer = s(this._value = this.defaultValue);
     }
 
-    null() {
-      this.buffer = s(this.value = null);
+    protected setNull() {
+      this.buffer = "null";
+      if (!this.edit) {
+        this._value = null;
+      }
     }
   };
 }
