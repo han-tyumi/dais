@@ -1,6 +1,11 @@
 import { KeyPressEvent } from "../../deps.ts";
-import { s } from "../utils.ts";
 import { theme } from "../theme.ts";
+import { BooleanEntry } from "./boolean.ts";
+import { ChoiceEntry } from "./choice.ts";
+import { NumberEntry } from "./number.ts";
+import { StringEntry } from "./string.ts";
+
+export type EntryValue = boolean | number | string | null;
 
 export interface FormatOptions {
   indentSize: number;
@@ -8,66 +13,38 @@ export interface FormatOptions {
   maxFieldLen: number;
 }
 
-export type EntryValue = boolean | number | string | null;
-
-export interface BaseEntry<T extends EntryValue> {
-  __type: "entry";
-  key: string;
-  defaultValue: T;
-  value: T;
-  displayKey: string;
-  displayValue: string;
-  theme: typeof theme;
-  toString(): string;
+export interface EntryConstructor {
+  new (key: string, format: FormatOptions): Entry;
 }
 
-export interface ExtendedEntry<T extends EntryValue> extends BaseEntry<T> {
-  hint(): [hint: string, interrupt: boolean];
-  handleInput(event: KeyPressEvent): boolean;
-  default(): void;
-  null(): void;
-}
+export abstract class Entry<T extends EntryValue = EntryValue> {
+  static Boolean = BooleanEntry;
+  static Choice = ChoiceEntry;
+  static Number = NumberEntry;
+  static String = StringEntry;
 
-export type Entry<T extends EntryValue = EntryValue> = ExtendedEntry<T>;
+  abstract readonly defaultValue: T;
+  abstract value: T;
+  readonly displayKey: string;
+  protected abstract displayValue: string;
 
-export type EntryFn<T extends EntryValue = EntryValue> = (
-  key: string,
-  format: FormatOptions,
-) => Entry<T>;
+  protected theme = { ...theme };
 
-// TODO: support non-nullable Entries (default)
-
-export function Entry<T extends EntryValue>(
-  getEntry: (
-    getBaseEntry: (defaultValue: T, displayValue?: string) => BaseEntry<T>,
-  ) => ExtendedEntry<T>,
-): EntryFn<T> {
-  return (key, format) => {
+  constructor(readonly key: string, readonly format: FormatOptions) {
     const { indentSize, indentLevel, maxFieldLen } = format;
 
-    const entry = getEntry(
-      (defaultValue, displayValue = s(defaultValue)) => ({
-        __type: "entry",
-        key,
-        defaultValue,
-        value: defaultValue,
-        displayKey: theme.key((" ".repeat(indentSize * indentLevel) + key)
-          .padEnd(maxFieldLen)) +
-          theme.base(" : "),
-        displayValue,
-        theme: { ...theme },
+    this.displayKey = theme.key((" ".repeat(indentSize * indentLevel) + key)
+      .padEnd(maxFieldLen)) +
+      theme.base(" : ");
+  }
 
-        toString() {
-          return this.displayKey +
-            (this.displayValue ? this.theme.value(this.displayValue) : "");
-        },
-      }),
-    );
+  abstract hint(): [hint: string, interrupt: boolean];
+  abstract handleInput(event: KeyPressEvent): boolean;
+  abstract default(): void;
+  abstract null(): void;
 
-    return { ...entry };
-  };
-}
-
-export function isEntry(value: unknown): value is Entry {
-  return (value as Entry).__type === "entry";
+  toString() {
+    return this.displayKey +
+      (this.displayValue ? this.theme.value(this.displayValue) : "");
+  }
 }

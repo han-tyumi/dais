@@ -1,21 +1,26 @@
+import { KeyPressEvent } from "../../deps.ts";
 import { genHint, s } from "../utils.ts";
 import { Entry } from "./entry.ts";
 
-const hint = genHint(
-  ["right|left|space|return", "toggle"],
-  ["d", "default"],
-  ["n", "null"],
-);
+export type Value = boolean | null;
 
-export function BooleanEntry(defaultValue: boolean | null) {
-  return Entry<boolean | null>((getBaseEntry) => ({
-    ...getBaseEntry(defaultValue),
+export function BooleanEntry(defaultValue: Value) {
+  return class BooleanEntry extends Entry<Value> {
+    protected static hint = genHint(
+      ["right|left|space|return", "toggle"],
+      ["d", "default"],
+      ["n", "null"],
+    );
+
+    readonly defaultValue = defaultValue;
+    value = defaultValue;
+    protected displayValue = s(defaultValue);
 
     hint() {
-      return [hint, false];
-    },
+      return [BooleanEntry.hint, false] as [string, boolean];
+    }
 
-    handleInput(event) {
+    handleInput(event: KeyPressEvent) {
       switch (event.key) {
         case "right":
         case "left":
@@ -37,14 +42,14 @@ export function BooleanEntry(defaultValue: boolean | null) {
       }
 
       return true;
-    },
+    }
 
     default() {
       this.displayValue = s(this.value = this.defaultValue);
-    },
+    }
 
     null() {
       this.displayValue = s(this.value = null);
-    },
-  }));
+    }
+  };
 }

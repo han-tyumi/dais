@@ -1,72 +1,75 @@
-import { colors } from "../../deps.ts";
+import { colors, KeyPressEvent } from "../../deps.ts";
 import { genHint, q, s } from "../utils.ts";
 import { Entry } from "./entry.ts";
 
-const hint = genHint(
-  ["right|space|return", "next"],
-  ["left", "prev"],
-  ["d", "default"],
-  ["n", "null"],
-);
+export type Value = string | null;
 
-export function ChoiceEntry(choices: string[], defaultValue: string | null) {
-  return Entry<string | null>((getBaseEntry) => {
-    const defaultIndex = defaultValue !== null
+export function ChoiceEntry(choices: string[], defaultValue: Value) {
+  return class ChoiceEntry extends Entry<Value> {
+    protected static hint = genHint(
+      ["right|space|return", "next"],
+      ["left", "prev"],
+      ["d", "default"],
+      ["n", "null"],
+    );
+
+    readonly defaultValue = defaultValue;
+    value = defaultValue;
+    protected displayValue = q(defaultValue);
+
+    protected defaultIndex = defaultValue !== null
       ? choices.indexOf(defaultValue)
       : -1;
-    let index = defaultIndex;
+    protected index = this.defaultIndex;
 
-    return {
-      ...getBaseEntry(defaultValue, q(defaultValue)),
+    hint() {
+      return [
+        colors.cyan(`choices: [${choices.map(q).join(", ")}]\n`) +
+        ChoiceEntry.hint,
+        false,
+      ] as [string, boolean];
+    }
 
-      hint() {
-        return [
-          colors.cyan(`choices: [${choices.map(q).join(", ")}]\n`) + hint,
-          false,
-        ];
-      },
+    handleInput(event: KeyPressEvent) {
+      let interrupt = false;
 
-      handleInput(event) {
-        let interrupt = false;
+      switch (event.key) {
+        case "right":
+        case "space":
+        case "return":
+          this.index = this.index < choices.length - 1 ? this.index + 1 : 0;
+          interrupt = true;
+          break;
 
-        switch (event.key) {
-          case "right":
-          case "space":
-          case "return":
-            index = index < choices.length - 1 ? index + 1 : 0;
-            interrupt = true;
-            break;
+        case "left":
+          this.index = this.index > 0 ? this.index - 1 : choices.length - 1;
+          interrupt = true;
+          break;
 
-          case "left":
-            index = index > 0 ? index - 1 : choices.length - 1;
-            interrupt = true;
-            break;
+        case "d":
+          this.default();
+          break;
 
-          case "d":
-            this.default();
-            break;
+        case "n":
+          this.null();
+          break;
+      }
 
-          case "n":
-            this.null();
-            break;
-        }
+      if (interrupt) {
+        this.displayValue = q(this.value = choices[this.index]);
+      }
 
-        if (interrupt) {
-          this.displayValue = q(this.value = choices[index]);
-        }
+      return interrupt;
+    }
 
-        return interrupt;
-      },
+    default() {
+      this.displayValue = q(this.value = this.defaultValue);
+      this.index = this.defaultIndex;
+    }
 
-      default() {
-        this.displayValue = q(this.value = this.defaultValue);
-        index = defaultIndex;
-      },
-
-      null() {
-        this.displayValue = s(this.value = null);
-        index = -1;
-      },
-    };
-  });
+    null() {
+      this.displayValue = s(this.value = null);
+      this.index = -1;
+    }
+  };
 }

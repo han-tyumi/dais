@@ -1,150 +1,152 @@
+import { KeyPressEvent } from "../../deps.ts";
 import { genHint, s } from "../utils.ts";
 import { theme } from "../theme.ts";
-import { Entry, ExtendedEntry } from "./entry.ts";
+import { Entry } from "./entry.ts";
 
-const editHint = genHint(
-  ["return", "save"],
-  ["esc", "cancel"],
-  ["l", "clear"],
-  ["i", "Infinity"],
-  ["d", "default"],
-  ["n", "null"],
-);
-const nonEditHint = genHint(
-  ["return", "edit"],
-  ["d", "default"],
-  ["n", "null"],
-);
+export type Value = number | null;
 
-export interface NumberEntry extends ExtendedEntry<number | null> {
-  setBuffer(value: string): void;
-}
+export function NumberEntry(defaultValue: Value, float = false) {
+  return class NumberEntry extends Entry<Value> {
+    protected static hint = {
+      edit: genHint(
+        ["return", "save"],
+        ["esc", "cancel"],
+        ["l", "clear"],
+        ["i", "Infinity"],
+        ["d", "default"],
+        ["n", "null"],
+      ),
+      default: genHint(
+        ["return", "edit"],
+        ["d", "default"],
+        ["n", "null"],
+      ),
+    };
 
-export function NumberEntry(defaultValue: number | null, float = false) {
-  return Entry<number | null>((getBaseEntry) => {
-    let edit = false;
+    readonly defaultValue = defaultValue;
+    value = defaultValue;
+    protected displayValue = s(defaultValue);
+
+    protected edit = false;
 
     // TODO: explore extracting out this functionality
-    let buffer = s(defaultValue);
+    protected _buffer = s(defaultValue);
+    protected get buffer() {
+      return this._buffer;
+    }
+    protected set buffer(value) {
+      this._buffer = value;
+      this.displayValue = s(value) + (this.edit ? theme.base("_") : "");
+    }
 
-    return {
-      ...getBaseEntry(defaultValue),
+    hint() {
+      return [
+        this.edit ? NumberEntry.hint.edit : NumberEntry.hint.default,
+        this.edit,
+      ] as [
+        string,
+        boolean,
+      ];
+    }
 
-      hint() {
-        return [edit ? editHint : nonEditHint, edit];
-      },
+    handleInput(event: KeyPressEvent) {
+      let interrupt = false;
 
-      setBuffer(value: string) {
-        buffer = value;
-        this.displayValue = s(value) + (edit ? theme.base("_") : "");
-      },
+      if (this.edit) {
+        interrupt = true;
 
-      handleInput(event) {
-        let interrupt = false;
-
-        if (edit) {
-          interrupt = true;
-
-          switch (event.key) {
-            case "return":
-              edit = false;
-              if (buffer === "") {
-                this.setBuffer(s(this.value = 0));
-              } else if (buffer === "null") {
-                this.setBuffer(s(this.value = null));
-              } else if (buffer === "Infinity") {
-                this.setBuffer(s(this.value = Infinity));
-              } else {
-                try {
-                  this.setBuffer(s(
-                    this.value = float
-                      ? parseFloat(buffer)
-                      : parseInt(buffer, 10),
-                  ));
-                } catch {
-                  this.setBuffer(s(this.value));
-                }
+        switch (event.key) {
+          case "return":
+            this.edit = false;
+            if (this.buffer === "") {
+              this.buffer = s(this.value = 0);
+            } else if (this.buffer === "null") {
+              this.buffer = s(this.value = null);
+            } else if (this.buffer === "Infinity") {
+              this.buffer = s(this.value = Infinity);
+            } else {
+              try {
+                this.buffer = s(
+                  this.value = float
+                    ? parseFloat(this.buffer)
+                    : parseInt(this.buffer, 10),
+                );
+              } catch {
+                this.buffer = s(this.value);
               }
-              break;
+            }
+            break;
 
-            case "escape":
-              edit = false;
-              this.setBuffer(s(this.value));
-              break;
+          case "escape":
+            this.edit = false;
+            this.buffer = s(this.value);
+            break;
 
-            case "backspace":
-              this.setBuffer(
-                (buffer === "Infinity" ||
-                    buffer === "null")
-                  ? ""
-                  : buffer.slice(0, -1),
-              );
-              break;
+          case "backspace":
+            this.buffer = (this.buffer === "Infinity" || this.buffer === "null")
+              ? ""
+              : this.buffer.slice(0, -1);
+            break;
 
-            case "d":
-              this.setBuffer(s(this.defaultValue));
-              break;
+          case "d":
+            this.buffer = s(this.defaultValue);
+            break;
 
-            case "n":
-              this.setBuffer("null");
-              break;
+          case "n":
+            this.buffer = "null";
+            break;
 
-            case "i":
-              this.setBuffer("Infinity");
-              break;
+          case "i":
+            this.buffer = "Infinity";
+            break;
 
-            case "l":
-              this.setBuffer("");
-              break;
+          case "l":
+            this.buffer = "";
+            break;
 
-            default:
-              if (
-                event.sequence && /\d/.test(event.sequence) ||
-                (float && event.sequence === "." &&
-                  !buffer.includes("."))
-              ) {
-                if (
-                  buffer === "Infinity" ||
-                  buffer === "null"
-                ) {
-                  this.setBuffer("");
-                }
-                this.setBuffer(buffer + event.sequence);
+          default:
+            if (
+              event.sequence && /\d/.test(event.sequence) ||
+              (float && event.sequence === "." && !this.buffer.includes("."))
+            ) {
+              if (this.buffer === "Infinity" || this.buffer === "null") {
+                this.buffer = "";
               }
-              break;
-          }
-
-          if (!edit) {
-            this.theme.value = theme.value;
-          }
-        } else {
-          switch (event.key) {
-            case "return":
-              edit = true;
-              this.theme.value = theme.value.italic;
-              this.setBuffer(s(this.value));
-              break;
-
-            case "d":
-              this.default();
-              break;
-
-            case "n":
-              this.null();
-              break;
-          }
+              this.buffer += event.sequence;
+            }
+            break;
         }
 
-        return interrupt;
-      },
+        if (!this.edit) {
+          this.theme.value = theme.value;
+        }
+      } else {
+        switch (event.key) {
+          case "return":
+            this.edit = true;
+            this.theme.value = theme.value.italic;
+            this.buffer = s(this.value);
+            break;
 
-      default() {
-        this.setBuffer(s(this.value = this.defaultValue));
-      },
+          case "d":
+            this.default();
+            break;
 
-      null() {
-        this.setBuffer(s(this.value = null));
-      },
-    } as NumberEntry;
-  });
+          case "n":
+            this.null();
+            break;
+        }
+      }
+
+      return interrupt;
+    }
+
+    default() {
+      this.buffer = s(this.value = this.defaultValue);
+    }
+
+    null() {
+      this.buffer = s(this.value = null);
+    }
+  };
 }

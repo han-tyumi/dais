@@ -8,13 +8,7 @@ import {
   PackageManagerCommand,
   packageManagerCommands,
 } from "./package_manager.ts";
-import {
-  BooleanEntry,
-  ChoiceEntry,
-  NumberEntry,
-  Record,
-  StringEntry,
-} from "./record/mod.ts";
+import { Entry, Record } from "./record/mod.ts";
 import { FileExt, fileExts, getConfigurationWriter } from "./utils.ts";
 import { ESLintConfig } from "./eslint.d.ts";
 import { PrettierConfig } from "./prettier.d.ts";
@@ -101,35 +95,35 @@ const cmd = new Command<Options>()
       });
 
       if (configurePrettier) {
-        prettierConfig = await Record({
-          printWidth: NumberEntry(80),
-          tabWidth: NumberEntry(2),
-          useTabs: BooleanEntry(false),
-          semi: BooleanEntry(true),
-          singleQuote: BooleanEntry(false),
-          quoteProps: ChoiceEntry(
+        prettierConfig = await new Record({
+          printWidth: Entry.Number(80),
+          tabWidth: Entry.Number(2),
+          useTabs: Entry.Boolean(false),
+          semi: Entry.Boolean(true),
+          singleQuote: Entry.Boolean(false),
+          quoteProps: Entry.Choice(
             ["as-needed", "consistent", "preserve"],
             "as-needed",
           ),
-          jsxSingleQuote: BooleanEntry(false),
-          trailingComma: ChoiceEntry(["es5", "none", "all"], "es5"),
-          bracketSpacing: BooleanEntry(true),
-          jsxBracketSameLine: BooleanEntry(false),
-          arrowParens: ChoiceEntry(["always", "avoid"], "always"),
-          rangeStart: NumberEntry(0),
-          rangeEnd: NumberEntry(Infinity),
-          parser: StringEntry(null),
-          filepath: StringEntry(null),
-          requirePragma: BooleanEntry(false),
-          insertPragma: BooleanEntry(false),
-          proseWrap: ChoiceEntry(["always", "never", "preserve"], "preserve"),
-          htmlWhitespaceSensitivity: ChoiceEntry(
+          jsxSingleQuote: Entry.Boolean(false),
+          trailingComma: Entry.Choice(["es5", "none", "all"], "es5"),
+          bracketSpacing: Entry.Boolean(true),
+          jsxBracketSameLine: Entry.Boolean(false),
+          arrowParens: Entry.Choice(["always", "avoid"], "always"),
+          rangeStart: Entry.Number(0),
+          rangeEnd: Entry.Number(Infinity),
+          parser: Entry.String(null),
+          filepath: Entry.String(null),
+          requirePragma: Entry.Boolean(false),
+          insertPragma: Entry.Boolean(false),
+          proseWrap: Entry.Choice(["always", "never", "preserve"], "preserve"),
+          htmlWhitespaceSensitivity: Entry.Choice(
             ["css", "strict", "ignore"],
             "css",
           ),
-          vueIndentScriptAndStyle: BooleanEntry(false),
-          endOfLine: ChoiceEntry(["lf", "crlf", "cr", "auto"], "lf"),
-          embeddedLanguageFormatting: ChoiceEntry(["auto", "off"], "auto"),
+          vueIndentScriptAndStyle: Entry.Boolean(false),
+          endOfLine: Entry.Choice(["lf", "crlf", "cr", "auto"], "lf"),
+          embeddedLanguageFormatting: Entry.Choice(["auto", "off"], "auto"),
         }).prompt();
       } else {
         prettierConfig = {};
