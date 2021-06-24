@@ -50,7 +50,7 @@ export function NumberEntry(
 
     protected edit = false;
 
-    // TODO: explore extracting out this functionality
+    // [TODO] explore extracting out this functionality
     protected _buffer = s(defaultValue);
     protected get buffer() {
       return this._buffer;

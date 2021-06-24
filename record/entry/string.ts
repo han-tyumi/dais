@@ -30,7 +30,7 @@ export function StringEntry(
 
     protected edit = false;
 
-    // TODO: explore extracting out this functionality
+    // [TODO] explore extracting out this functionality
     protected _buffer = defaultValue;
     protected get buffer() {
       return this._buffer;
@@ -49,11 +49,11 @@ export function StringEntry(
         hintActions.push(
           ["return", "save"],
           ["esc", "cancel"],
-          ["ctrl+l", "clear"],
-          ["ctrl+d", "default"],
+          ["^l", "clear"],
+          ["^d", "default"],
         );
         if (this.nullable) {
-          hintActions.push(["ctrl+n", "null"]);
+          hintActions.push(["^n", "null"]);
         }
       } else {
         hintActions.push(

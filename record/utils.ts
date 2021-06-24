@@ -8,7 +8,7 @@ export function q(value: unknown) {
   return typeof value === "string" ? `'${value}'` : s(value);
 }
 
-// TODO: explore creating function to handle inputs that also generates corresponding hints
+// [TODO] explore creating function to handle inputs that also generates corresponding hints
 
 export type HintAction = [key: string, action: string];
 

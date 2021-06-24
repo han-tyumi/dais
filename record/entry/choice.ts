@@ -26,6 +26,7 @@ export function ChoiceEntry(
   nullable = defaultValue === null,
 ): EntryConstructor<string | null> {
   return class ChoiceEntry extends Entry<string | null> {
+    readonly choices = choices;
     readonly nullable = nullable;
     readonly defaultValue = defaultValue;
     protected _value = defaultValue;

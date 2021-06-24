@@ -1,4 +1,4 @@
-import { colors, keypress, tty } from "../deps.ts";
+import { colors, Fuse, keypress, tty } from "../deps.ts";
 import {
   Entry,
   EntryConstructor,
@@ -6,7 +6,7 @@ import {
   FormatOptions,
 } from "./entry/entry.ts";
 import { theme } from "./theme.ts";
-import { genHint, write } from "./utils.ts";
+import { genHint, HintAction, write } from "./utils.ts";
 
 export interface RecordConfig {
   [key: string]: EntryConstructor | RecordConfig;
@@ -19,16 +19,7 @@ interface Values {
   [key: string]: EntryValue | Values;
 }
 
-// TODO: support fuzzy key / value search
 export class Record {
-  protected static hint = genHint(
-    ["up", "move up"],
-    ["down", "move down"],
-    ["ctrl+d", "all default"],
-    ["ctrl+s", "save"],
-    ["ctrl+c", "cancel"],
-  );
-
   readonly format: FormatOptions;
   readonly entries: Entries = [];
   readonly config: Config = {};
@@ -87,6 +78,17 @@ export class Record {
   async prompt(rows = 7) {
     rows = rows > this.entries.length ? this.entries.length : rows;
     const buffer = Math.ceil(rows / 2);
+    const fuse = new Fuse(this.entries, {
+      keys: [
+        { name: "key", weight: 0.5 },
+        { name: "displayValue", weight: 0.3 },
+        { name: "choices", weight: 0.2 },
+      ],
+      findAllMatches: true,
+    });
+    let entries = this.entries;
+    let searching = false;
+    let query = "";
     let selection = 0;
     let start = 0;
     let cancelled = false;
@@ -94,7 +96,28 @@ export class Record {
     tty.cursorSave.cursorHide();
 
     do {
-      const window = this.entries
+      if (searching) {
+        const results = fuse.search(query);
+
+        entries = [];
+        const indices = new Set();
+        for (const { item, refIndex } of results) {
+          entries.push(item);
+          indices.add(refIndex);
+        }
+
+        entries.push(...this.entries.filter((_, i) => !indices.has(i)));
+
+        write(
+          theme.base("/") +
+            (query ? colors.magenta(query) : "") +
+            theme.base("_\n"),
+        );
+      } else if (query) {
+        write(theme.base("/") + colors.magenta.bold(query) + "\n");
+      }
+
+      const window = entries
         .slice(start, start + rows)
         .map((entry, i) =>
           start + i === selection
@@ -104,55 +127,120 @@ export class Record {
         .join("\n");
       write(window);
 
-      const selected = this.entries[selection];
+      if (searching) {
+        const hintActions: HintAction[] = [
+          ["return", "submit"],
+          ["esc", "cancel"],
+        ];
 
-      let interrupt = false;
-      if (selected instanceof Entry) {
-        const [hint, i] = selected.hint();
-        interrupt = i;
-        write("\n" + hint);
-      }
-
-      if (!interrupt) {
-        write("\n" + Record.hint);
-      }
-
-      const event = await keypress();
-
-      interrupt = selected instanceof Entry
-        ? selected.handleInput(event)
-        : false;
-
-      if (!interrupt) {
-        switch (event.key) {
-          case "up":
-            if (selection > 0) {
-              selection--;
-            }
-            if (start > 0 && selection < this.entries.length - buffer) {
-              start--;
-            }
-            break;
-
-          case "down":
-            if (selection < this.entries.length - 1) {
-              selection++;
-            }
-            if (start + rows < this.entries.length && selection >= buffer) {
-              start++;
-            }
-            break;
+        if (query) {
+          hintActions.push(["^l", "clear"]);
         }
 
-        if (event.key === "c" && event.ctrlKey) {
-          cancelled = true;
-          break;
-        } else if (event.key === "s" && event.ctrlKey) {
-          break;
-        } else if (event.key === "d" && event.ctrlKey) {
-          this.entries.forEach((entry) =>
-            entry instanceof Entry && entry.default()
+        write("\n" + genHint(...hintActions));
+
+        const event = await keypress();
+
+        if (event.key === "return") {
+          searching = false;
+        } else if (event.key === "escape") {
+          searching = false;
+          query = "";
+          entries = this.entries;
+        } else if (event.key === "l" && event.ctrlKey) {
+          query = "";
+        } else if (event.key === "backspace") {
+          query = query.slice(0, -1);
+        } else if (event.sequence?.length === 1) {
+          query += event.sequence;
+        }
+      } else {
+        const selected = entries[selection];
+
+        let interrupt = false;
+        if (selected instanceof Entry) {
+          const [hint, i] = selected.hint();
+          interrupt = i;
+          write("\n" + hint);
+        }
+
+        if (!interrupt) {
+          const hintActions: HintAction[] = [
+            // [TODO] support pgup, pgdn, home, end
+            // [TODO] support VIM style navigation
+            ["up", "move up"],
+            ["down", "move down"],
+            ["/", "search"],
+          ];
+
+          if (query) {
+            hintActions.push(["?", "clear search"]);
+          }
+
+          hintActions.push(
+            // [TODO] remove if all at default
+            ["^d", "all default"],
+            ["^s", "save"],
+            ["^c", "cancel"],
           );
+
+          write("\n" + genHint(...hintActions));
+        }
+
+        const event = await keypress();
+
+        interrupt = selected instanceof Entry
+          ? selected.handleInput(event)
+          : false;
+
+        if (!interrupt) {
+          switch (event.key) {
+            case "up":
+              if (selection > 0) {
+                selection--;
+              }
+              if (start > 0 && selection < entries.length - buffer) {
+                start--;
+              }
+              break;
+
+            case "down":
+              if (selection < entries.length - 1) {
+                selection++;
+              }
+              if (start + rows < entries.length && selection >= buffer) {
+                start++;
+              }
+              break;
+          }
+
+          if (event.sequence === "/") {
+            searching = true;
+            query = "";
+            entries = this.entries;
+            start = selection = 0;
+          } else if (event.sequence === "?") {
+            query = "";
+            entries = this.entries;
+            selection = entries.findIndex(({ key }) => key === selected.key) ||
+              selection;
+
+            start = (selection - buffer) + 1;
+            if (start < 0) {
+              start = 0;
+            } else if (start > entries.length - rows) {
+              start = entries.length - rows;
+            }
+          } else if (event.key === "c" && event.ctrlKey) {
+            cancelled = true;
+            break;
+          } else if (event.key === "s" && event.ctrlKey) {
+            break;
+          } else if (event.key === "d" && event.ctrlKey) {
+            entries.forEach((entry) =>
+              entry instanceof Entry && entry.default()
+            );
+          }
         }
       }
 
@@ -160,7 +248,7 @@ export class Record {
     } while (true);
 
     write("\n");
-    tty.cursorShow();
+    tty.cursorRestore.eraseDown.cursorShow();
 
     if (cancelled) {
       return {};

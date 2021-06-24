@@ -46,6 +46,7 @@ export abstract class Entry<T extends EntryValue = EntryValue> {
 
   abstract hint(): [hint: string, interrupt: boolean];
   abstract handleInput(event: KeyPressEvent): boolean;
+  // [TODO] move default and null handling into record
   abstract default(): void;
 
   protected abstract setNull(): void;
