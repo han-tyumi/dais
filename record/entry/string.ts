@@ -53,7 +53,7 @@ export function StringEntry(
         if (this.buffer === null || this.buffer) {
           hintActions.push(["^l", "clear"]);
         }
-        if (this.changed) {
+        if (this.buffer !== this.defaultValue) {
           hintActions.push(["^d", "default"]);
         }
         if (this.nullable && this.buffer !== null) {
@@ -93,7 +93,10 @@ export function StringEntry(
               (this.buffer === null || this.buffer)
             ) {
               this.buffer = "";
-            } else if (event.key === "d" && event.ctrlKey && this.changed) {
+            } else if (
+              event.key === "d" && event.ctrlKey &&
+              this.buffer !== this.defaultValue
+            ) {
               this.buffer = this.defaultValue;
             } else if (
               event.key === "n" && event.ctrlKey && this.nullable &&

@@ -61,7 +61,7 @@ export abstract class Entry<T extends EntryValue = EntryValue> {
 
   protected abstract setToNull(): void;
   null() {
-    if (this.nullable) {
+    if (this.nullable && this._value !== null) {
       this.setToNull();
     }
   }

@@ -22,7 +22,17 @@ interface Values {
 export class Record {
   readonly format: FormatOptions;
   readonly entries: Entries = [];
+  readonly flatEntries: Entries = [];
   readonly config: Config = {};
+
+  get changed() {
+    for (const { changed } of this.entries) {
+      if (changed) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   constructor(
     readonly recordConfig: RecordConfig,
@@ -62,6 +72,7 @@ export class Record {
       if (typeof value === "function") {
         const entry = new value(key, this.format);
         this.entries.push(entry);
+        this.flatEntries.push(entry);
         this.config[key] = entry;
       } else {
         const record = new Record(value, {
@@ -69,16 +80,17 @@ export class Record {
           indentLevel: indentLevel + 1,
           maxFieldLen,
         }, key);
-        this.entries.push(record, ...record.entries);
+        this.entries.push(record);
+        this.flatEntries.push(record, ...record.flatEntries);
         this.config[key] = record.config;
       }
     }
   }
 
   async prompt(rows = 7) {
-    rows = rows > this.entries.length ? this.entries.length : rows;
+    rows = rows > this.flatEntries.length ? this.flatEntries.length : rows;
     const buffer = Math.ceil(rows / 2);
-    const fuse = new Fuse(this.entries, {
+    const fuse = new Fuse(this.flatEntries, {
       keys: [
         { name: "key", weight: 0.5 },
         { name: "displayValue", weight: 0.3 },
@@ -86,7 +98,7 @@ export class Record {
       ],
       findAllMatches: true,
     });
-    let entries = this.entries;
+    let entries = this.flatEntries;
     let searching = false;
     let query = "";
     let selection = 0;
@@ -106,7 +118,7 @@ export class Record {
           indices.add(refIndex);
         }
 
-        entries.push(...this.entries.filter((_, i) => !indices.has(i)));
+        entries.push(...this.flatEntries.filter((_, i) => !indices.has(i)));
 
         write(
           theme.base("/") +
@@ -146,7 +158,7 @@ export class Record {
         } else if (event.key === "escape") {
           searching = false;
           query = "";
-          entries = this.entries;
+          entries = this.flatEntries;
         } else if (event.key === "l" && event.ctrlKey) {
           query = "";
         } else if (event.key === "backspace") {
@@ -173,13 +185,16 @@ export class Record {
             ["down", "move down"],
           ];
 
-          if (selected instanceof Entry) {
-            if (selected.changed) {
-              hintActions.push(["d", "default"]);
-            }
-            if (selected.nullable && selected.value !== null) {
-              hintActions.push(["n", "null"]);
-            }
+          if (selected.changed) {
+            hintActions.push(["d", "default"]);
+          }
+
+          if (
+            selected instanceof Entry &&
+            selected.nullable &&
+            selected.value !== null
+          ) {
+            hintActions.push(["n", "null"]);
           }
 
           hintActions.push(["/", "search"]);
@@ -187,9 +202,11 @@ export class Record {
             hintActions.push(["?", "clear search"]);
           }
 
+          if (this.changed) {
+            hintActions.push(["^d", "all default"]);
+          }
+
           hintActions.push(
-            // [TODO] remove if all at default
-            ["^d", "all default"],
             ["^s", "save"],
             // [TODO] allow cancel within edit
             ["^c", "cancel"],
@@ -225,24 +242,24 @@ export class Record {
               break;
 
             case "d":
-              // [TODO] add default method for Record
-              selected instanceof Entry && selected.default();
+              selected.default();
               break;
 
             case "n":
-              // [TODO] add null method for Record
-              selected instanceof Entry && selected.null();
+              if (selected instanceof Entry) {
+                selected.null();
+              }
               break;
           }
 
           if (event.sequence === "/") {
             searching = true;
             query = "";
-            entries = this.entries;
+            entries = this.flatEntries;
             start = selection = 0;
           } else if (event.sequence === "?") {
             query = "";
-            entries = this.entries;
+            entries = this.flatEntries;
             selection = entries.findIndex(({ key }) => key === selected.key) ||
               selection;
 
@@ -258,9 +275,7 @@ export class Record {
           } else if (event.key === "s" && event.ctrlKey) {
             break;
           } else if (event.key === "d" && event.ctrlKey) {
-            entries.forEach((entry) =>
-              entry instanceof Entry && entry.default()
-            );
+            this.default();
           }
         }
       }
@@ -291,6 +306,12 @@ export class Record {
     };
 
     return getValues();
+  }
+
+  default() {
+    for (const entry of this.entries) {
+      entry.default();
+    }
   }
 
   toString() {

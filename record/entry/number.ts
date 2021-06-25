@@ -58,7 +58,7 @@ export function NumberEntry(
         if (this.buffer !== "Infinity") {
           hintActions.push(["i", "Infinity"]);
         }
-        if (this.changed) {
+        if (this.buffer !== s(this.defaultValue)) {
           hintActions.push(["d", "default"]);
         }
         if (this.nullable && this.buffer !== "null") {
@@ -123,7 +123,7 @@ export function NumberEntry(
             break;
 
           case "d":
-            if (this.changed) {
+            if (this.buffer !== s(this.defaultValue)) {
               this.buffer = s(this.defaultValue);
             }
             break;
