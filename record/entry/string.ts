@@ -42,30 +42,28 @@ export function StringEntry(
         : q(value.replaceAll("'", "\\'") + (this.edit ? theme.base("_") : ""));
     }
 
-    hint() {
+    get hint() {
       const hintActions: HintAction[] = [];
 
       if (this.edit) {
         hintActions.push(
           ["return", "save"],
           ["esc", "cancel"],
-          ["^l", "clear"],
-          ["^d", "default"],
         );
-        if (this.nullable) {
+        if (this.buffer === null || this.buffer) {
+          hintActions.push(["^l", "clear"]);
+        }
+        if (this.changed) {
+          hintActions.push(["^d", "default"]);
+        }
+        if (this.nullable && this.buffer !== null) {
           hintActions.push(["^n", "null"]);
         }
       } else {
-        hintActions.push(
-          ["return", "edit"],
-          ["d", "default"],
-        );
-        if (this.nullable) {
-          hintActions.push(["n", "null"]);
-        }
+        hintActions.push(["return", "edit"]);
       }
 
-      return [genHint(...hintActions), this.edit] as [string, boolean];
+      return { hint: genHint(hintActions), interrupt: this.edit };
     }
 
     handleInput(event: KeyPressEvent) {
@@ -90,12 +88,18 @@ export function StringEntry(
             break;
 
           default:
-            if (event.key === "l" && event.ctrlKey) {
+            if (
+              event.key === "l" && event.ctrlKey &&
+              (this.buffer === null || this.buffer)
+            ) {
               this.buffer = "";
-            } else if (event.key === "d" && event.ctrlKey) {
+            } else if (event.key === "d" && event.ctrlKey && this.changed) {
               this.buffer = this.defaultValue;
-            } else if (event.key === "n" && event.ctrlKey) {
-              this.null();
+            } else if (
+              event.key === "n" && event.ctrlKey && this.nullable &&
+              this.buffer !== null
+            ) {
+              this.buffer = null;
             } else if (event.sequence?.length === 1) {
               if (this.buffer === null) {
                 this.buffer = "";
@@ -115,29 +119,18 @@ export function StringEntry(
             this.buffer = this._value;
             this.theme.value = theme.value.italic;
             break;
-
-          case "d":
-            this.default();
-            break;
-
-          case "n":
-            this.null();
-            break;
         }
       }
 
       return interrupt;
     }
 
-    default() {
+    protected setToDefault() {
       this.buffer = this._value = this.defaultValue;
     }
 
-    protected setNull() {
-      this.buffer = null;
-      if (!this.edit) {
-        this._value = null;
-      }
+    protected setToNull() {
+      this.buffer = this._value = null;
     }
   };
 }

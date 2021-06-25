@@ -1,5 +1,5 @@
 import { KeyPressEvent } from "../../deps.ts";
-import { genHint, HintAction, s } from "../utils.ts";
+import { genHint, s } from "../utils.ts";
 import { Entry, EntryConstructor } from "./entry.ts";
 
 export function BooleanEntry(
@@ -22,22 +22,15 @@ export function BooleanEntry(
   nullable = defaultValue === null,
 ): EntryConstructor<boolean | null> {
   return class BooleanEntry extends Entry<boolean | null> {
+    protected static hint = genHint([["right|left|space|return", "toggle"]]);
+
     readonly nullable = nullable;
     readonly defaultValue = defaultValue;
     protected _value = defaultValue;
     protected displayValue = s(defaultValue);
 
-    hint() {
-      const hintActions: HintAction[] = [
-        ["right|left|space|return", "toggle"],
-        ["d", "default"],
-      ];
-
-      if (this.nullable) {
-        hintActions.push(["n", "null"]);
-      }
-
-      return [genHint(...hintActions), false] as [string, boolean];
+    get hint() {
+      return { hint: BooleanEntry.hint };
     }
 
     handleInput(event: KeyPressEvent) {
@@ -49,14 +42,6 @@ export function BooleanEntry(
           this.displayValue = s(this._value = !this._value);
           break;
 
-        case "d":
-          this.default();
-          break;
-
-        case "n":
-          this.null();
-          break;
-
         default:
           return false;
       }
@@ -64,11 +49,11 @@ export function BooleanEntry(
       return true;
     }
 
-    default() {
+    protected setToDefault() {
       this.displayValue = s(this._value = this.defaultValue);
     }
 
-    protected setNull() {
+    protected setToNull() {
       this.displayValue = s(this._value = null);
     }
   };

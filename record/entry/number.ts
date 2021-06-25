@@ -27,22 +27,6 @@ export function NumberEntry(
   nullable = defaultValue === null,
 ): EntryConstructor<number | null> {
   return class NumberEntry extends Entry<number | null> {
-    protected static hint = {
-      edit: genHint(
-        ["return", "save"],
-        ["esc", "cancel"],
-        ["l", "clear"],
-        ["i", "Infinity"],
-        ["d", "default"],
-        ["n", "null"],
-      ),
-      default: genHint(
-        ["return", "edit"],
-        ["d", "default"],
-        ["n", "null"],
-      ),
-    };
-
     readonly nullable = nullable;
     readonly defaultValue = defaultValue;
     protected _value = defaultValue;
@@ -60,26 +44,31 @@ export function NumberEntry(
       this.displayValue = s(value) + (this.edit ? theme.base("_") : "");
     }
 
-    hint() {
+    get hint() {
       const hintActions: HintAction[] = [];
 
       if (this.edit) {
         hintActions.push(
           ["return", "save"],
           ["esc", "cancel"],
-          ["l", "clear"],
-          ["i", "Infinity"],
-          ["d", "default"],
         );
+        if (this.buffer) {
+          hintActions.push(["l", "clear"]);
+        }
+        if (this.buffer !== "Infinity") {
+          hintActions.push(["i", "Infinity"]);
+        }
+        if (this.changed) {
+          hintActions.push(["d", "default"]);
+        }
+        if (this.nullable && this.buffer !== "null") {
+          hintActions.push(["n", "null"]);
+        }
       } else {
-        hintActions.push(["return", "edit"], ["d", "default"]);
+        hintActions.push(["return", "edit"]);
       }
 
-      if (this.nullable) {
-        hintActions.push(["n", "null"]);
-      }
-
-      return [genHint(...hintActions), this.edit] as [string, boolean];
+      return { hint: genHint(hintActions), interrupt: this.edit };
     }
 
     handleInput(event: KeyPressEvent) {
@@ -121,20 +110,28 @@ export function NumberEntry(
               : this.buffer.slice(0, -1);
             break;
 
-          case "d":
-            this.buffer = s(this.defaultValue);
-            break;
-
-          case "n":
-            this.null();
+          case "l":
+            if (this.buffer) {
+              this.buffer = "";
+            }
             break;
 
           case "i":
-            this.buffer = "Infinity";
+            if (this.buffer !== "Infinity") {
+              this.buffer = "Infinity";
+            }
             break;
 
-          case "l":
-            this.buffer = "";
+          case "d":
+            if (this.changed) {
+              this.buffer = s(this.defaultValue);
+            }
+            break;
+
+          case "n":
+            if (this.nullable && this.buffer !== "null") {
+              this.buffer = "null";
+            }
             break;
 
           default:
@@ -160,29 +157,18 @@ export function NumberEntry(
             this.theme.value = theme.value.italic;
             this.buffer = s(this._value);
             break;
-
-          case "d":
-            this.default();
-            break;
-
-          case "n":
-            this.null();
-            break;
         }
       }
 
       return interrupt;
     }
 
-    default() {
+    protected setToDefault() {
       this.buffer = s(this._value = this.defaultValue);
     }
 
-    protected setNull() {
-      this.buffer = "null";
-      if (!this.edit) {
-        this._value = null;
-      }
+    protected setToNull() {
+      this.buffer = s(this._value = null);
     }
   };
 }

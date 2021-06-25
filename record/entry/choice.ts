@@ -1,5 +1,5 @@
 import { colors, KeyPressEvent } from "../../deps.ts";
-import { genHint, HintAction, q, s } from "../utils.ts";
+import { genHint, q, s } from "../utils.ts";
 import { Entry, EntryConstructor } from "./entry.ts";
 
 export function ChoiceEntry(
@@ -26,6 +26,11 @@ export function ChoiceEntry(
   nullable = defaultValue === null,
 ): EntryConstructor<string | null> {
   return class ChoiceEntry extends Entry<string | null> {
+    protected static hint = genHint([
+      ["right|space|return", "next"],
+      ["left", "prev"],
+    ]);
+
     readonly choices = choices;
     readonly nullable = nullable;
     readonly defaultValue = defaultValue;
@@ -37,22 +42,11 @@ export function ChoiceEntry(
       : -1;
     protected index = this.defaultIndex;
 
-    hint() {
-      const hintActions: HintAction[] = [
-        ["right|space|return", "next"],
-        ["left", "prev"],
-        ["d", "default"],
-      ];
-
-      if (this.nullable) {
-        hintActions.push(["n", "null"]);
-      }
-
-      return [
-        colors.cyan(`choices: [${choices.map(q).join(", ")}]\n`) +
-        genHint(...hintActions),
-        false,
-      ] as [string, boolean];
+    get hint() {
+      return {
+        hint: colors.cyan(`choices: [${choices.map(q).join(", ")}]\n`) +
+          ChoiceEntry.hint,
+      };
     }
 
     handleInput(event: KeyPressEvent) {
@@ -70,14 +64,6 @@ export function ChoiceEntry(
           this.index = this.index > 0 ? this.index - 1 : choices.length - 1;
           interrupt = true;
           break;
-
-        case "d":
-          this.default();
-          break;
-
-        case "n":
-          this.null();
-          break;
       }
 
       if (interrupt) {
@@ -87,12 +73,12 @@ export function ChoiceEntry(
       return interrupt;
     }
 
-    default() {
+    protected setToDefault() {
       this.displayValue = q(this._value = this.defaultValue);
       this.index = this.defaultIndex;
     }
 
-    protected setNull() {
+    protected setToNull() {
       this.displayValue = s(this._value = null);
       this.index = -1;
     }

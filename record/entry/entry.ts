@@ -31,6 +31,12 @@ export abstract class Entry<T extends EntryValue = EntryValue> {
     return this._value;
   }
 
+  get changed() {
+    return this._value !== this.defaultValue;
+  }
+
+  abstract get hint(): { hint: string; interrupt?: boolean };
+
   readonly displayKey: string;
   protected abstract displayValue: string;
 
@@ -44,16 +50,19 @@ export abstract class Entry<T extends EntryValue = EntryValue> {
       theme.base(" : ");
   }
 
-  abstract hint(): [hint: string, interrupt: boolean];
   abstract handleInput(event: KeyPressEvent): boolean;
-  // [TODO] move default and null handling into record
-  abstract default(): void;
 
-  protected abstract setNull(): void;
+  protected abstract setToDefault(): void;
+  default() {
+    if (this.changed) {
+      this.setToDefault();
+    }
+  }
 
+  protected abstract setToNull(): void;
   null() {
     if (this.nullable) {
-      this.setNull();
+      this.setToNull();
     }
   }
 

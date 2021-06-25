@@ -137,7 +137,7 @@ export class Record {
           hintActions.push(["^l", "clear"]);
         }
 
-        write("\n" + genHint(...hintActions));
+        write("\n" + genHint(hintActions));
 
         const event = await keypress();
 
@@ -159,20 +159,30 @@ export class Record {
 
         let interrupt = false;
         if (selected instanceof Entry) {
-          const [hint, i] = selected.hint();
+          const { hint, interrupt: i = false } = selected.hint;
           interrupt = i;
           write("\n" + hint);
         }
 
         if (!interrupt) {
+          // [TODO] split up hints on multiple lines
           const hintActions: HintAction[] = [
             // [TODO] support pgup, pgdn, home, end
             // [TODO] support VIM style navigation
             ["up", "move up"],
             ["down", "move down"],
-            ["/", "search"],
           ];
 
+          if (selected instanceof Entry) {
+            if (selected.changed) {
+              hintActions.push(["d", "default"]);
+            }
+            if (selected.nullable && selected.value !== null) {
+              hintActions.push(["n", "null"]);
+            }
+          }
+
+          hintActions.push(["/", "search"]);
           if (query) {
             hintActions.push(["?", "clear search"]);
           }
@@ -181,10 +191,11 @@ export class Record {
             // [TODO] remove if all at default
             ["^d", "all default"],
             ["^s", "save"],
+            // [TODO] allow cancel within edit
             ["^c", "cancel"],
           );
 
-          write("\n" + genHint(...hintActions));
+          write("\n" + genHint(hintActions));
         }
 
         const event = await keypress();
@@ -211,6 +222,16 @@ export class Record {
               if (start + rows < entries.length && selection >= buffer) {
                 start++;
               }
+              break;
+
+            case "d":
+              // [TODO] add default method for Record
+              selected instanceof Entry && selected.default();
+              break;
+
+            case "n":
+              // [TODO] add null method for Record
+              selected instanceof Entry && selected.null();
               break;
           }
 
@@ -262,7 +283,7 @@ export class Record {
           if (Object.keys(subValues).length) {
             values[key] = subValues;
           }
-        } else if (value.value !== value.defaultValue) {
+        } else if (value.changed) {
           values[key] = value.value;
         }
       }
