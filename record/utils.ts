@@ -14,8 +14,8 @@ export type HintAction = [key: string, action: string];
 
 export function genHint(actions: HintAction[]) {
   return actions.map(([key, action]) =>
-    colors.blue(`[${key}] `) + colors.brightBlue(action)
-  ).join(colors.blue(" | "));
+    colors.blue.bold(`[${key}] `) + colors.blue(action)
+  ).join(colors.white(" | "));
 }
 
 export function write(text: string) {

@@ -87,6 +87,8 @@ export class Record {
     }
   }
 
+  // [TODO] split up logic
+  // [TODO] display page, selection, and/or total numbers
   async prompt(rows = 7) {
     rows = rows > this.flatEntries.length ? this.flatEntries.length : rows;
     const buffer = Math.ceil(rows / 2);
@@ -178,12 +180,32 @@ export class Record {
 
         if (!interrupt) {
           // [TODO] split up hints on multiple lines
-          const hintActions: HintAction[] = [
-            // [TODO] support pgup, pgdn, home, end
-            // [TODO] support VIM style navigation
-            ["up", "move up"],
-            ["down", "move down"],
-          ];
+          // [TODO] support optional VIM or custom navigation
+          const hintActions: HintAction[] = [];
+
+          const notStart = selection > 0;
+          const notEnd = selection < entries.length - 1;
+
+          if (notStart) {
+            hintActions.push(["up", "move up"]);
+          }
+          if (notEnd) {
+            hintActions.push(["down", "move down"]);
+          }
+
+          if (notStart) {
+            hintActions.push(["pgup", "move up a page"]);
+          }
+          if (notEnd) {
+            hintActions.push(["pgdn", "move down a page"]);
+          }
+
+          if (notStart) {
+            hintActions.push(["home", "move to start"]);
+          }
+          if (notEnd) {
+            hintActions.push(["end", "move to end"]);
+          }
 
           if (selected.changed) {
             hintActions.push(["d", "default"]);
@@ -208,6 +230,7 @@ export class Record {
 
           hintActions.push(
             ["^s", "save"],
+            // [TODO] change cancel to something else; ctrl+c to quit completely
             // [TODO] allow cancel within edit
             ["^c", "cancel"],
           );
@@ -232,12 +255,43 @@ export class Record {
               }
               break;
 
+            case "pageup":
+              if (start > 0) {
+                start = Math.max(start - rows, 0);
+                selection = start + buffer - 1;
+              } else if (selection > 0) {
+                selection = 0;
+              }
+              break;
+
+            case "home":
+              if (selection > 0) {
+                selection = start = 0;
+              }
+              break;
+
             case "down":
               if (selection < entries.length - 1) {
                 selection++;
               }
               if (start + rows < entries.length && selection >= buffer) {
                 start++;
+              }
+              break;
+
+            case "pagedown":
+              if (start < entries.length - rows) {
+                start = Math.min(start + rows, entries.length - rows);
+                selection = start + buffer - 1;
+              } else if (selection < entries.length - 1) {
+                selection = entries.length - 1;
+              }
+              break;
+
+            case "end":
+              if (selection < entries.length - 1) {
+                selection = entries.length - 1;
+                start = entries.length - rows;
               }
               break;
 
