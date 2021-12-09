@@ -52,20 +52,26 @@ export function NumberEntry(
           ["return", "save"],
           ["esc", "cancel"],
         );
+
         if (this.buffer) {
           hintActions.push(["l", "clear"]);
         }
-        if (this.buffer !== "Infinity") {
-          hintActions.push(["i", "Infinity"]);
-        }
-        if (this.buffer !== s(this.defaultValue)) {
-          hintActions.push(["d", "default"]);
-        }
-        if (this.nullable && this.buffer !== "null") {
-          hintActions.push(["n", "null"]);
-        }
       } else {
         hintActions.push(["return", "edit"]);
+      }
+
+      if (!this.buffer.endsWith("Infinity")) {
+        hintActions.push(["right", "increment"], ["left", "decrement"]);
+      }
+
+      if (this.buffer !== "Infinity") {
+        hintActions.push(["i", "Infinity"]);
+      }
+
+      if (
+        this.buffer === "" || (this.buffer !== "null" && !this.isBufferZero())
+      ) {
+        hintActions.push(["-|+", "toggle sign"]);
       }
 
       return { hint: genHint(hintActions), interrupt: this.edit };
@@ -80,23 +86,7 @@ export function NumberEntry(
         switch (event.key) {
           case "return":
             this.edit = false;
-            if (this.buffer === "") {
-              this.buffer = s(this._value = 0);
-            } else if (this.buffer === "null") {
-              this.buffer = s(this._value = null);
-            } else if (this.buffer === "Infinity") {
-              this.buffer = s(this._value = Infinity);
-            } else {
-              try {
-                this.buffer = s(
-                  this._value = float
-                    ? parseFloat(this.buffer)
-                    : parseInt(this.buffer, 10),
-                );
-              } catch {
-                this.buffer = s(this._value);
-              }
-            }
+            this.setValue(this.getBufferValue());
             break;
 
           case "escape":
@@ -105,9 +95,10 @@ export function NumberEntry(
             break;
 
           case "backspace":
-            this.buffer = (this.buffer === "Infinity" || this.buffer === "null")
-              ? ""
-              : this.buffer.slice(0, -1);
+            this.buffer =
+              (this.buffer.endsWith("Infinity") || this.buffer === "null")
+                ? ""
+                : this.buffer.slice(0, -1);
             break;
 
           case "l":
@@ -134,15 +125,47 @@ export function NumberEntry(
             }
             break;
 
+          case "right":
+            if (!this.buffer.endsWith("Infinity")) {
+              const value = this.getBufferValue();
+              if (typeof value === "number") {
+                this.buffer = s(value + 1);
+              } else {
+                this.buffer = "0";
+              }
+            }
+            break;
+
+          case "left":
+            if (!this.buffer.endsWith("Infinity")) {
+              const value = this.getBufferValue();
+              if (typeof value === "number") {
+                this.buffer = s(value - 1);
+              } else {
+                this.buffer = "0";
+              }
+            }
+            break;
+
           default:
             if (
               event.sequence && /\d/.test(event.sequence) ||
               (float && event.sequence === "." && !this.buffer.includes("."))
             ) {
-              if (this.buffer === "Infinity" || this.buffer === "null") {
+              if (this.buffer.endsWith("Infinity") || this.buffer === "null") {
                 this.buffer = "";
               }
               this.buffer += event.sequence;
+            } else if (
+              (event.sequence === "-" || event.sequence === "+") &&
+              (this.buffer === "" ||
+                (this.buffer !== "null" && !this.isBufferZero()))
+            ) {
+              if (this.buffer[0] === "-") {
+                this.buffer = this.buffer.slice(1);
+              } else {
+                this.buffer = "-" + this.buffer;
+              }
             }
             break;
         }
@@ -155,8 +178,55 @@ export function NumberEntry(
           case "return":
             this.edit = true;
             this.theme.value = theme.value.italic;
-            this.buffer = s(this._value);
             break;
+
+          case "i":
+            if (this._value !== Infinity) {
+              this.setValue(Infinity);
+            }
+            break;
+
+          case "d":
+            if (this._value !== this.defaultValue) {
+              this.setValue(this.defaultValue);
+            }
+            break;
+
+          case "n":
+            if (this.nullable && this._value !== null) {
+              this.setValue(null);
+            }
+            break;
+
+          case "right":
+            if (
+              typeof this._value === "number" &&
+              this._value !== Infinity && this._value !== -Infinity
+            ) {
+              this.setValue(this._value + 1);
+            } else {
+              this.setValue(0);
+            }
+            break;
+
+          case "left":
+            if (
+              typeof this._value === "number" &&
+              this._value !== Infinity && this._value !== -Infinity
+            ) {
+              this.setValue(this._value - 1);
+            } else {
+              this.setValue(0);
+            }
+            break;
+
+          default:
+            if (
+              (event.sequence === "-" || event.sequence === "+") &&
+              (this._value !== null && this._value !== 0)
+            ) {
+              this.setValue(this._value * -1);
+            }
         }
       }
 
@@ -164,11 +234,42 @@ export function NumberEntry(
     }
 
     protected setToDefault() {
-      this.buffer = s(this._value = this.defaultValue);
+      this.setValue(this.defaultValue);
     }
 
     protected setToNull() {
-      this.buffer = s(this._value = null);
+      this.setValue(null);
+    }
+
+    private setValue(value: number | null) {
+      this.buffer = s(this._value = value);
+    }
+
+    private getBufferValue() {
+      if (this.buffer === "" || this.buffer === "-") {
+        return 0;
+      } else if (this.buffer === "null") {
+        return null;
+      } else if (this.buffer === "Infinity") {
+        return Infinity;
+      } else if (this.buffer === "-Infinity") {
+        return -Infinity;
+      } else {
+        try {
+          return float ? parseFloat(this.buffer) : parseInt(this.buffer, 10);
+        } catch {
+          return this._value;
+        }
+      }
+    }
+
+    private isBufferZero() {
+      for (const char of this.buffer) {
+        if (char !== "-" && char !== "0") {
+          return false;
+        }
+      }
+      return true;
     }
   };
 }
