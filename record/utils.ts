@@ -1,4 +1,4 @@
-import { colors } from "../deps.ts";
+import { colors } from "./deps.ts";
 
 export function s(value: unknown) {
   return `${value}`;

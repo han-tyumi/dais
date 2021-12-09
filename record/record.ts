@@ -1,4 +1,4 @@
-import { colors, Fuse, keypress, tty } from "../deps.ts";
+import { colors, Fuse, keypress, tty } from "./deps.ts";
 import {
   Entry,
   EntryConstructor,

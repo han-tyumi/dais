@@ -1,4 +1,4 @@
-import { KeyPressEvent } from "../../deps.ts";
+import { KeyPressEvent } from "../deps.ts";
 import { theme } from "../theme.ts";
 import { BooleanEntry } from "./boolean.ts";
 import { ChoiceEntry } from "./choice.ts";

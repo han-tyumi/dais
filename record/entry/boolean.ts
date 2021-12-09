@@ -1,4 +1,4 @@
-import { KeyPressEvent } from "../../deps.ts";
+import { KeyPressEvent } from "../deps.ts";
 import { genHint, s } from "../utils.ts";
 import { Entry, EntryConstructor } from "./entry.ts";
 
