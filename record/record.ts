@@ -34,6 +34,20 @@ export class Record {
     return false;
   }
 
+  private rows = 7;
+  private buffer = 4;
+  private selection = 0;
+  private start = 0;
+  private windowEntries = this.flatEntries;
+
+  private get atStart() {
+    return this.selection === 0;
+  }
+
+  private get atEnd() {
+    return this.selection === this.windowEntries.length - 1;
+  }
+
   constructor(
     readonly recordConfig: RecordConfig,
     format: Partial<FormatOptions> = {},
@@ -89,9 +103,13 @@ export class Record {
 
   // [TODO] split up logic
   // [TODO] display page, selection, and/or total numbers
-  async prompt(rows = 7) {
-    rows = rows > this.flatEntries.length ? this.flatEntries.length : rows;
-    const buffer = Math.ceil(rows / 2);
+  async prompt(rows = this.rows) {
+    this.rows = rows > this.flatEntries.length ? this.flatEntries.length : rows;
+    this.buffer = Math.ceil(this.rows / 2);
+    this.selection = 0;
+    this.start = 0;
+    this.windowEntries = this.flatEntries;
+
     const fuse = new Fuse(this.flatEntries, {
       keys: [
         { name: "key", weight: 0.5 },
@@ -100,11 +118,8 @@ export class Record {
       ],
       findAllMatches: true,
     });
-    let entries = this.flatEntries;
     let searching = false;
     let query = "";
-    let selection = 0;
-    let start = 0;
     let cancelled = false;
 
     tty.cursorSave.cursorHide();
@@ -113,14 +128,16 @@ export class Record {
       if (searching) {
         const results = fuse.search(query);
 
-        entries = [];
+        this.windowEntries = [];
         const indices = new Set();
         for (const { item, refIndex } of results) {
-          entries.push(item);
+          this.windowEntries.push(item);
           indices.add(refIndex);
         }
 
-        entries.push(...this.flatEntries.filter((_, i) => !indices.has(i)));
+        this.windowEntries.push(
+          ...this.flatEntries.filter((_, i) => !indices.has(i)),
+        );
 
         write(
           theme.base("/") +
@@ -131,10 +148,10 @@ export class Record {
         write(theme.base("/") + colors.magenta.bold(query) + "\n");
       }
 
-      const window = entries
-        .slice(start, start + rows)
+      const window = this.windowEntries
+        .slice(this.start, this.start + this.rows)
         .map((entry, i) =>
-          start + i === selection
+          this.start + i === this.selection
             ? colors.bold.bgBlack(entry.toString())
             : entry
         )
@@ -160,7 +177,7 @@ export class Record {
         } else if (event.key === "escape") {
           searching = false;
           query = "";
-          entries = this.flatEntries;
+          this.windowEntries = this.flatEntries;
         } else if (event.key === "l" && event.ctrlKey) {
           query = "";
         } else if (event.key === "backspace") {
@@ -169,41 +186,29 @@ export class Record {
           query += event.sequence;
         }
       } else {
-        const selected = entries[selection];
+        const selected = this.windowEntries[this.selection];
 
         let interrupt = false;
         if (selected instanceof Entry) {
-          const { hint, interrupt: i = false } = selected.hint;
-          interrupt = i;
+          const { hint, interrupt: selectedInterrupt = false } = selected.hint;
+          interrupt = selectedInterrupt;
           write("\n" + hint);
         }
 
         if (!interrupt) {
           // [TODO] split up hints on multiple lines
           // [TODO] support optional VIM or custom navigation
-          const hintActions: HintAction[] = [];
+          const hintActions: HintAction[] = [
+            ["up", "move up"],
+            ["down", "move down"],
+            ["pgup", "move up a page"],
+            ["pgdn", "move down a page"],
+          ];
 
-          const notStart = selection > 0;
-          const notEnd = selection < entries.length - 1;
-
-          if (notStart) {
-            hintActions.push(["up", "move up"]);
-          }
-          if (notEnd) {
-            hintActions.push(["down", "move down"]);
-          }
-
-          if (notStart) {
-            hintActions.push(["pgup", "move up a page"]);
-          }
-          if (notEnd) {
-            hintActions.push(["pgdn", "move down a page"]);
-          }
-
-          if (notStart) {
+          if (!this.atStart) {
             hintActions.push(["home", "move to start"]);
           }
-          if (notEnd) {
+          if (!this.atEnd) {
             hintActions.push(["end", "move to end"]);
           }
 
@@ -247,52 +252,27 @@ export class Record {
         if (!interrupt) {
           switch (event.key) {
             case "up":
-              if (selection > 0) {
-                selection--;
-              }
-              if (start > 0 && selection < entries.length - buffer) {
-                start--;
-              }
+              this.moveUp();
               break;
 
             case "pageup":
-              if (start > 0) {
-                start = Math.max(start - rows, 0);
-                selection = start + buffer - 1;
-              } else if (selection > 0) {
-                selection = 0;
-              }
+              this.movePageUp();
               break;
 
             case "home":
-              if (selection > 0) {
-                selection = start = 0;
-              }
+              this.moveToStart();
               break;
 
             case "down":
-              if (selection < entries.length - 1) {
-                selection++;
-              }
-              if (start + rows < entries.length && selection >= buffer) {
-                start++;
-              }
+              this.moveDown();
               break;
 
             case "pagedown":
-              if (start < entries.length - rows) {
-                start = Math.min(start + rows, entries.length - rows);
-                selection = start + buffer - 1;
-              } else if (selection < entries.length - 1) {
-                selection = entries.length - 1;
-              }
+              this.movePageDown();
               break;
 
             case "end":
-              if (selection < entries.length - 1) {
-                selection = entries.length - 1;
-                start = entries.length - rows;
-              }
+              this.moveToEnd();
               break;
 
             case "d":
@@ -309,19 +289,20 @@ export class Record {
           if (event.sequence === "/") {
             searching = true;
             query = "";
-            entries = this.flatEntries;
-            start = selection = 0;
+            this.windowEntries = this.flatEntries;
+            this.start = this.selection = 0;
           } else if (event.sequence === "?") {
             query = "";
-            entries = this.flatEntries;
-            selection = entries.findIndex(({ key }) => key === selected.key) ||
-              selection;
+            this.windowEntries = this.flatEntries;
+            this.selection = this.windowEntries
+              .findIndex(({ key }) => key === selected.key) ||
+              this.selection;
 
-            start = (selection - buffer) + 1;
-            if (start < 0) {
-              start = 0;
-            } else if (start > entries.length - rows) {
-              start = entries.length - rows;
+            this.start = (this.selection - this.buffer) + 1;
+            if (this.start < 0) {
+              this.start = 0;
+            } else if (this.start > this.windowEntries.length - this.rows) {
+              this.start = this.windowEntries.length - this.rows;
             }
           } else if (event.key === "c" && event.ctrlKey) {
             cancelled = true;
@@ -375,5 +356,77 @@ export class Record {
       : theme.key((" ".repeat(indentSize * (indentLevel - 1)) + this.key)
         .padEnd(maxFieldLen)) +
         theme.base(" :");
+  }
+
+  private moveUp() {
+    if (this.atStart) {
+      return this.moveToEnd();
+    }
+
+    this.selection--;
+
+    if (
+      this.start > 0 &&
+      this.selection < this.windowEntries.length - this.buffer
+    ) {
+      this.start--;
+    }
+  }
+
+  private movePageUp() {
+    if (this.atStart) {
+      this.moveToEnd();
+    }
+
+    if (this.start > 0) {
+      this.start = Math.max(this.start - this.rows, 0);
+      this.selection = this.start + this.buffer - 1;
+    } else if (this.selection > 0) {
+      this.selection = 0;
+    }
+  }
+
+  private moveToStart() {
+    if (!this.atStart) {
+      this.selection = this.start = 0;
+    }
+  }
+
+  private moveDown() {
+    if (this.atEnd) {
+      return this.moveToStart();
+    }
+
+    this.selection++;
+
+    if (
+      this.start + this.rows < this.windowEntries.length &&
+      this.selection >= this.buffer
+    ) {
+      this.start++;
+    }
+  }
+
+  private movePageDown() {
+    if (this.atEnd) {
+      this.moveToStart();
+    }
+
+    if (this.start < this.windowEntries.length - this.rows) {
+      this.start = Math.min(
+        this.start + this.rows,
+        this.windowEntries.length - this.rows,
+      );
+      this.selection = this.start + this.buffer - 1;
+    } else if (this.selection < this.windowEntries.length - 1) {
+      this.selection = this.windowEntries.length - 1;
+    }
+  }
+
+  private moveToEnd() {
+    if (!this.atEnd) {
+      this.selection = this.windowEntries.length - 1;
+      this.start = this.windowEntries.length - this.rows;
+    }
   }
 }
