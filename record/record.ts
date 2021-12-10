@@ -333,7 +333,7 @@ export class Record {
           if (Object.keys(subValues).length) {
             values[key] = subValues;
           }
-        } else if (value.changed) {
+        } else {
           values[key] = value.value;
         }
       }
