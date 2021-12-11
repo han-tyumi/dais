@@ -34,6 +34,7 @@ export class Record {
     return false;
   }
 
+  private y = 0;
   private rows = 7;
   private buffer = 4;
   private selection = 0;
@@ -122,7 +123,7 @@ export class Record {
     let query = "";
     let cancelled = false;
 
-    tty.cursorSave.cursorHide();
+    tty.cursorLeft.eraseDown.cursorHide();
 
     do {
       if (searching) {
@@ -139,13 +140,13 @@ export class Record {
           ...this.flatEntries.filter((_, i) => !indices.has(i)),
         );
 
-        write(
+        this.write(
           theme.base("/") +
             (query ? colors.magenta(query) : "") +
             theme.base("_\n"),
         );
       } else if (query) {
-        write(theme.base("/") + colors.magenta.bold(query) + "\n");
+        this.write(theme.base("/") + colors.magenta.bold(query) + "\n");
       }
 
       const window = this.windowEntries
@@ -156,7 +157,7 @@ export class Record {
             : entry
         )
         .join("\n");
-      write(window);
+      this.write(window);
 
       if (searching) {
         const hintActions: HintAction[] = [
@@ -168,7 +169,7 @@ export class Record {
           hintActions.push(["^l", "clear"]);
         }
 
-        write("\n" + genHint(hintActions));
+        this.write("\n" + genHint(hintActions));
 
         const event = await keypress();
 
@@ -192,7 +193,7 @@ export class Record {
         if (selected instanceof Entry) {
           const { hint, interrupt: selectedInterrupt = false } = selected.hint;
           interrupt = selectedInterrupt;
-          write("\n" + hint);
+          this.write("\n" + hint);
         }
 
         if (!interrupt) {
@@ -240,7 +241,7 @@ export class Record {
             ["^c", "cancel"],
           );
 
-          write("\n" + genHint(hintActions));
+          this.write("\n" + genHint(hintActions));
         }
 
         const event = await keypress();
@@ -315,11 +316,12 @@ export class Record {
         }
       }
 
-      tty.cursorRestore.eraseDown();
+      this.resetCursor();
     } while (true);
 
-    write("\n");
-    tty.cursorRestore.eraseDown.cursorShow();
+    this.write("\n");
+    this.resetCursor();
+    tty.cursorShow();
 
     if (cancelled) {
       return {};
@@ -356,6 +358,17 @@ export class Record {
       : theme.key((" ".repeat(indentSize * (indentLevel - 1)) + this.key)
         .padEnd(maxFieldLen)) +
         theme.base(" :");
+  }
+
+  private write(text: string) {
+    this.y += colors.stripColor(text).split("\n").length - 1;
+    write(text);
+  }
+
+  private resetCursor() {
+    tty.cursorUp(this.y);
+    tty.cursorLeft.eraseDown();
+    this.y = 0;
   }
 
   private moveUp() {
