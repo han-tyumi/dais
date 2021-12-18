@@ -1,5 +1,7 @@
 import { KeyPressEvent } from "../deps.ts";
+
 import { theme } from "../theme.ts";
+
 import { BooleanEntry } from "./boolean.ts";
 import { ChoiceEntry } from "./choice.ts";
 import { NumberEntry } from "./number.ts";
@@ -35,7 +37,7 @@ export abstract class Entry<T extends EntryValue = EntryValue> {
     return this._value !== this.defaultValue;
   }
 
-  abstract get hint(): { hint: string; interrupt?: boolean };
+  abstract get hint(): { hint?: string; interrupt?: boolean };
 
   readonly displayKey: string;
   protected abstract displayValue: string;

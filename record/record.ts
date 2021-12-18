@@ -1,10 +1,12 @@
 import { colors, Fuse, keypress, tty } from "./deps.ts";
+
 import {
   Entry,
   EntryConstructor,
   EntryValue,
   FormatOptions,
 } from "./entry/entry.ts";
+
 import { theme } from "./theme.ts";
 import { genHint, HintAction, write } from "./utils.ts";
 
@@ -193,7 +195,7 @@ export class Record {
         if (selected instanceof Entry) {
           const { hint, interrupt: selectedInterrupt = false } = selected.hint;
           interrupt = selectedInterrupt;
-          this.write("\n" + hint);
+          hint && this.write("\n" + hint);
         }
 
         if (!interrupt) {

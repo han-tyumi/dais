@@ -1,6 +1,10 @@
-import { KeyPressEvent } from "../deps.ts";
-import { genHint, HintAction, s } from "../utils.ts";
+import { colors, KeyPressEvent } from "../deps.ts";
+
 import { theme } from "../theme.ts";
+import { s } from "../utils.ts";
+
+import { ActionMatcher } from "./action/mod.ts";
+
 import { Entry, EntryConstructor } from "./entry.ts";
 
 export interface NumberEntryOptions {
@@ -55,245 +59,216 @@ export function NumberEntry(
     }
     protected set buffer(value) {
       this._buffer = value;
-      this.displayValue = s(value) + (this.edit ? theme.base("_") : "");
+      this.displayValue = value + (this.edit ? theme.base("_") : "");
     }
 
+    protected get editValue() {
+      return this.edit ? this.getBufferValue() : this.value;
+    }
+    protected set editValue(value) {
+      this.buffer = s(this.edit ? value : (this._value = value));
+    }
+
+    protected actions = ActionMatcher.new({
+      hintFormat: (trigger, description) =>
+        trigger &&
+        description &&
+        colors.blue.bold(`[${trigger}] `) + colors.blue(description),
+      hintSeparator: colors.white(" | "),
+    }).add(
+      {
+        matcher: "return",
+        action: () => {
+          if (this.edit) {
+            this.edit = false;
+            this.editValue = this.getBufferValue();
+            this.theme.value = theme.value;
+          } else {
+            this.edit = true;
+            this.editValue = this._value;
+            this.theme.value = theme.value.italic;
+          }
+        },
+        hint: {
+          description: () => (this.edit ? "save" : "edit"),
+        },
+      },
+      {
+        matcher: "escape",
+        active: () => this.edit,
+        action: () => {
+          this.edit = false;
+          this.buffer = s(this.value);
+          this.theme.value = theme.value;
+        },
+        hint: {
+          description: "cancel",
+        },
+      },
+      {
+        matcher: (matches) =>
+          matches(/\d/) ||
+          (float && !this.buffer.includes(".") && matches(".")),
+        active: () => this.edit,
+        action: (match) => {
+          let newBuffer = this.buffer;
+
+          if (newBuffer.endsWith("Infinity") || newBuffer === "null") {
+            newBuffer = "";
+          }
+
+          newBuffer += match;
+
+          const newValue = this.getBufferValue(newBuffer);
+          if (newValue === null || (newValue >= min && newValue <= max)) {
+            this.buffer = newBuffer;
+          }
+        },
+        hint: false,
+      },
+      {
+        matcher: "backspace",
+        active: () => this.edit,
+        action: () => {
+          this.buffer =
+            this.buffer.endsWith("Infinity") || this.buffer === "null"
+              ? ""
+              : this.buffer.slice(0, -1);
+        },
+        hint: false,
+      },
+      {
+        matcher: "l",
+        active: () => this.edit && !!this.buffer,
+        action: () => {
+          this.buffer = "";
+        },
+        hint: {
+          description: "clear",
+        },
+      },
+      {
+        matcher: "i",
+        active: () => max >= Infinity && this.editValue !== Infinity,
+        action: () => {
+          this.editValue = Infinity;
+        },
+        hint: {
+          description: "Infinity",
+        },
+      },
+      {
+        matcher: "i",
+        modifiers: ["shift"],
+        active: () => min <= -Infinity && this.editValue !== -Infinity,
+        action: () => {
+          this.editValue = -Infinity;
+        },
+        hint: {
+          description: "-Infinity",
+        },
+      },
+      {
+        matcher: "d",
+        active: () => this.edit && this.buffer !== s(this.defaultValue),
+        action: () => {
+          this.buffer = s(this.defaultValue);
+        },
+        hint: {
+          description: "default",
+        },
+      },
+      {
+        matcher: "n",
+        active: () => this.edit && this.nullable && this.buffer !== "null",
+        action: () => {
+          this.buffer = "null";
+        },
+        hint: {
+          description: "null",
+        },
+      },
+      {
+        matcher: "right",
+        active: () =>
+          this.editValue !== null &&
+          this.editValue !== Infinity &&
+          this.editValue !== -Infinity &&
+          this.editValue < max,
+        action: () => {
+          this.editValue! += 1;
+        },
+        hint: {
+          description: "increment",
+        },
+      },
+      {
+        matcher: "left",
+        active: () =>
+          this.editValue !== null &&
+          this.editValue !== Infinity &&
+          this.editValue !== -Infinity &&
+          this.editValue > min,
+        action: () => {
+          this.editValue! -= 1;
+        },
+        hint: {
+          description: "decrement",
+        },
+      },
+      {
+        matcher: ["-", "+"],
+        action: (match) => {
+          if (this.edit && match === "-" && this.buffer === "" && min < 0) {
+            this.buffer += "-";
+          } else {
+            this.editValue = this.getToggleSign();
+          }
+        },
+        hint: {
+          show: () => {
+            if (this.edit && this.buffer === "") {
+              return false;
+            }
+            return this.editValue !== this.getToggleSign();
+          },
+          description: "toggle sign",
+        },
+      },
+    );
+
     get hint() {
-      const hintActions: HintAction[] = [];
-
-      if (this.edit) {
-        hintActions.push(
-          ["return", "save"],
-          ["esc", "cancel"],
-        );
-
-        if (this.buffer) {
-          hintActions.push(["l", "clear"]);
-        }
-      } else {
-        hintActions.push(["return", "edit"]);
-      }
-
-      const value = this.getBufferValue();
-
-      if (value !== null && !this.buffer.endsWith("Infinity")) {
-        if (value < max) {
-          hintActions.push(["right", "increment"]);
-        }
-
-        if (value > min) {
-          hintActions.push(["left", "decrement"]);
-        }
-      }
-
-      if (max >= Infinity && this.buffer !== "Infinity") {
-        hintActions.push(["i", "Infinity"]);
-      }
-
-      if (min <= -Infinity && this.buffer !== "-Infinity") {
-        hintActions.push(["I", "-Infinity"]);
-      }
-
-      if (value !== null && value !== 0) {
-        const newValue = value * -1;
-        if (newValue >= min && newValue <= max) {
-          hintActions.push(["-|+", "toggle sign"]);
-        }
-      }
-
-      return { hint: genHint(hintActions), interrupt: this.edit };
+      return { hint: this.actions.hint(), interrupt: this.edit };
     }
 
     handleInput(event: KeyPressEvent) {
-      let interrupt = false;
-
-      if (this.edit) {
-        interrupt = true;
-
-        switch (event.key) {
-          case "return":
-            this.edit = false;
-            this.setValue(this.getBufferValue());
-            break;
-
-          case "escape":
-            this.edit = false;
-            this.buffer = s(this._value);
-            break;
-
-          case "backspace":
-            this.buffer =
-              (this.buffer.endsWith("Infinity") || this.buffer === "null")
-                ? ""
-                : this.buffer.slice(0, -1);
-            break;
-
-          case "l":
-            if (this.buffer) {
-              this.buffer = "";
-            }
-            break;
-
-          case "i":
-            if (event.shiftKey) {
-              if (min <= -Infinity && this.buffer !== "-Infinity") {
-                this.buffer = "-Infinity";
-              }
-            } else {
-              if (max >= Infinity && this.buffer !== "Infinity") {
-                this.buffer = "Infinity";
-              }
-            }
-            break;
-
-          case "d":
-            if (this.buffer !== s(this.defaultValue)) {
-              this.buffer = s(this.defaultValue);
-            }
-            break;
-
-          case "n":
-            if (this.nullable && this.buffer !== "null") {
-              this.buffer = "null";
-            }
-            break;
-
-          case "right":
-            if (this.buffer !== "null" && !this.buffer.endsWith("Infinity")) {
-              const value = this.getBufferValue()!;
-              if (value < max) {
-                this.buffer = s(value + 1);
-              }
-            }
-            break;
-
-          case "left":
-            if (this.buffer !== "null" && !this.buffer.endsWith("Infinity")) {
-              const value = this.getBufferValue()!;
-              if (value > min) {
-                this.buffer = s(value - 1);
-              }
-            }
-            break;
-
-          default:
-            if (
-              event.sequence && /\d/.test(event.sequence) ||
-              (float && event.sequence === "." && !this.buffer.includes("."))
-            ) {
-              let newBuffer = this.buffer;
-
-              if (newBuffer.endsWith("Infinity") || newBuffer === "null") {
-                newBuffer = "";
-              }
-
-              newBuffer += event.sequence;
-
-              const newValue = this.getBufferValue(newBuffer);
-              if (newValue === null || newValue >= min && newValue <= max) {
-                this.buffer = newBuffer;
-              }
-            } else if (
-              (event.sequence === "-" || event.sequence === "+")
-            ) {
-              if (event.sequence === "-" && this.buffer === "" && min < 0) {
-                this.buffer += "-";
-              } else {
-                const value = this.getBufferValue();
-                if (value !== null && value !== 0) {
-                  const newValue = value * -1;
-                  if (newValue >= min && newValue <= max) {
-                    this.buffer = s(newValue);
-                  }
-                }
-              }
-            }
-            break;
-        }
-
-        if (!this.edit) {
-          this.theme.value = theme.value;
-        }
-      } else {
-        switch (event.key) {
-          case "return":
-            this.edit = true;
-            this.theme.value = theme.value.italic;
-            break;
-
-          case "i":
-            if (event.shiftKey) {
-              if (min <= -Infinity && this._value !== -Infinity) {
-                this.setValue(-Infinity);
-              }
-            } else {
-              if (max >= Infinity && this._value !== Infinity) {
-                this.setValue(Infinity);
-              }
-            }
-            break;
-
-          case "d":
-            if (this._value !== this.defaultValue) {
-              this.setValue(this.defaultValue);
-            }
-            break;
-
-          case "n":
-            if (this.nullable && this._value !== null) {
-              this.setValue(null);
-            }
-            break;
-
-          case "right":
-            if (
-              this._value !== null &&
-              this._value !== Infinity && this._value !== -Infinity &&
-              this._value < max
-            ) {
-              this.setValue(this._value + 1);
-            }
-            break;
-
-          case "left":
-            if (
-              this._value !== null &&
-              this._value !== Infinity && this._value !== -Infinity &&
-              this._value > min
-            ) {
-              this.setValue(this._value - 1);
-            }
-            break;
-
-          default:
-            if (
-              (event.sequence === "-" || event.sequence === "+") &&
-              (this._value !== null && this._value !== 0)
-            ) {
-              const newValue = this._value * -1;
-              if (newValue >= min && newValue <= max) {
-                this.setValue(newValue);
-              }
-            }
-        }
-      }
-
+      const interrupt = this.edit;
+      this.actions.try(event);
       return interrupt;
     }
 
     protected setToDefault() {
-      this.setValue(this.defaultValue);
+      this.editValue = this.defaultValue;
     }
 
     protected setToNull() {
-      this.setValue(null);
+      this.editValue = null;
     }
 
-    private setValue(value: number | null) {
-      this.buffer = s(this._value = value);
+    protected getToggleSign() {
+      const currentValue = this.editValue;
+
+      if (currentValue) {
+        const newValue = currentValue * -1;
+        if (newValue >= min && newValue <= max) {
+          return newValue;
+        }
+      }
+
+      return currentValue;
     }
 
-    private getBufferValue(buffer = this.buffer) {
+    protected getBufferValue(buffer = this.buffer) {
       if (buffer === "" || buffer === "-") {
         return this._value;
       } else if (buffer === "null") {
